@@ -21,6 +21,14 @@ type PostResponse struct {
 	UpdatedAt string `json:"updated_at"`
 }
 
+type PostListResponse struct {
+	Ok    bool           `json:"ok"`
+	Page  int            `json:"page"`
+	Limit int            `json:"limit"`
+	Total int64          `json:"total"`
+	Posts []PostResponse `json:"posts"`
+}
+
 type PostResponseWithAuthor struct {
 	ID        uint   `json:"id"`
 	Title     string `json:"title"`

@@ -1,17 +1,16 @@
 package controllers
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"go_blog/config"
 	"go_blog/dto"
 	"go_blog/helpers"
+	"go_blog/internal/repositories"
 	"go_blog/models"
 	"go_blog/utils"
 	"go_blog/validators"
 	"net/http"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -150,67 +149,16 @@ func DeletePost(c *gin.Context) {
 }
 
 func ListPosts(c *gin.Context) {
-	ctx := c.Request.Context()
+
 	page, limit := utils.GetPage(c)
 	q := c.Query("q")
 
-	var ver int64 = 1
-	if config.RDB != nil {
-		if v, err := config.RDB.Get(ctx, utils.PostsListVersionKey()).Int64(); err == nil {
-			ver = v
-		}
-	}
+	repo := repositories.NewPostRepository(config.DB, config.RDB)
 
-	cacheKey := utils.PostsListsCacheKey(ver, page, limit, q)
-
-	if config.RDB != nil {
-		cached, err := config.RDB.Get(ctx, cacheKey).Result()
-		if err == nil {
-			var out map[string]any
-			if json.Unmarshal([]byte(cached), &out) == nil {
-				// чтобы page/limit всегда соответствовали текущему запросу (на всякий)
-				out["page"] = page
-				out["limit"] = limit
-				utils.RespondOK(c, out)
-				return
-			}
-		}
-	}
-
-	db := config.DB.Model(&models.Post{}).Where("is_active = ?", true).Order("created_at desc")
-
-	if q != "" {
-		db = db.Where("title ILIKE ?", "%"+q+"%")
-	}
-
-	var total int64
-	if err := db.Count(&total).Error; err != nil {
-		utils.RespondError(c, http.StatusInternalServerError, "failed to count posts")
-		return
-	}
-
-	var posts []models.Post
-	if err := db.Limit(limit).Offset(utils.Offset(page, limit)).Find(&posts).Error; err != nil {
+	out, err := repo.List(c.Request.Context(), page, limit, q)
+	if err != nil {
 		utils.RespondError(c, http.StatusInternalServerError, "failed to list posts")
 		return
-	}
-
-	resp := make([]dto.PostResponse, 0, len(posts))
-	for _, post := range posts {
-		resp = append(resp, postToResp(post))
-	}
-
-	out := gin.H{
-		"ok":    true,
-		"page":  page,
-		"limit": limit,
-		"total": total,
-		"posts": resp,
-	}
-
-	if config.RDB != nil {
-		b, _ := json.Marshal(out)
-		_ = config.RDB.Set(ctx, cacheKey, b, 30*time.Second).Err()
 	}
 
 	utils.RespondOK(c, out)
@@ -218,37 +166,17 @@ func ListPosts(c *gin.Context) {
 
 func GetPost(c *gin.Context) {
 	slug := c.Param("slug")
-	ctx := c.Request.Context()
 
-	cacheKey := "post:slug:" + slug
+	postRepo := repositories.NewPostRepository(config.DB, config.RDB)
 
-	// Пытаемся взять из Redis
-	if config.RDB == nil {
-		cached, err := config.RDB.Get(ctx, cacheKey).Result()
-		if err == nil {
-			var resp dto.PostResponse
-			if err := json.Unmarshal([]byte(cached), &resp); err == nil {
-				utils.RespondOK(c, resp)
-				return
-			}
-		}
-	}
-
-	var post models.Post
-	if err := config.DB.Where("slug = ? AND is_active = ?", slug, true).First(&post).Error; err != nil {
+	resp, err := postRepo.GetBySlug(c.Request.Context(), slug)
+	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			utils.RespondError(c, http.StatusNotFound, "post not found")
 			return
 		}
 		utils.RespondError(c, http.StatusInternalServerError, "failed to get post")
 		return
-	}
-
-	resp := postToResp(post)
-
-	if config.RDB != nil {
-		b, _ := json.Marshal(resp)
-		_ = config.RDB.Set(ctx, cacheKey, b, 60*time.Second).Err()
 	}
 
 	utils.RespondOK(c, resp)
