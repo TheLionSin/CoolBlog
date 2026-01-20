@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"go_blog/dto"
+	"go_blog/helpers"
 	"go_blog/models"
 	"go_blog/utils"
 	"strings"
@@ -26,8 +27,37 @@ func NewPostRepository(db *gorm.DB, rdb *redis.Client) *PostRepository {
 	return &PostRepository{db: db, rdb: rdb}
 }
 
+func postBySlugKey(slug string) string {
+	return "post:slug:" + slug
+}
+
+func postsListKey(ver int64, page, limit int, q string) string {
+	qNorm := strings.TrimSpace(strings.ToLower(q))
+	sum := sha256.Sum256([]byte(qNorm))
+	qh := hex.EncodeToString(sum[:8]) // короткий хэш, чтобы ключи не раздувались
+	return fmt.Sprintf("posts:list:v%d:p%d:l%d:q%s", ver, page, limit, qh)
+}
+
+func (r *PostRepository) listVersion(ctx context.Context) int64 {
+	if r.rdb == nil {
+		return 1
+	}
+	v, err := r.rdb.Get(ctx, utils.PostsListVersionKey()).Int64()
+	if err != nil {
+		return 1
+	}
+	return v
+}
+
+func (r *PostRepository) bumpListVersion(ctx context.Context) {
+	if r.rdb == nil {
+		return
+	}
+	_ = r.rdb.Incr(ctx, utils.PostsListVersionKey()).Err()
+}
+
 func (r *PostRepository) GetBySlug(ctx context.Context, slug string) (dto.PostResponse, error) {
-	cacheKey := "post:slug:" + slug
+	cacheKey := postBySlugKey(slug)
 
 	if r.rdb != nil {
 		if cached, err := r.rdb.Get(ctx, cacheKey).Result(); err == nil {
@@ -46,10 +76,11 @@ func (r *PostRepository) GetBySlug(ctx context.Context, slug string) (dto.PostRe
 		return dto.PostResponse{}, err
 	}
 
-	resp := postToResp(post)
+	resp := utils.PostToResp(post)
 
 	if r.rdb != nil {
-		_ = r.rdb.Set(ctx, cacheKey, utils.MustJSON(resp), time.Minute)
+		b, _ := json.Marshal(resp)
+		_ = r.rdb.Set(ctx, cacheKey, b, time.Minute).Err()
 	}
 
 	return resp, nil
@@ -58,11 +89,9 @@ func (r *PostRepository) GetBySlug(ctx context.Context, slug string) (dto.PostRe
 
 func (r *PostRepository) List(ctx context.Context, page, limit int, q string) (dto.PostListResponse, error) {
 
-	qNorm := strings.TrimSpace(strings.ToLower(q))
+	ver := r.listVersion(ctx)
 
-	sum := sha256.Sum256([]byte(qNorm))
-	qh := hex.EncodeToString(sum[:8])
-	cacheKey := fmt.Sprintf("posts:list:p%d:l%d:q%s", page, limit, qh)
+	cacheKey := postsListKey(ver, page, limit, q)
 
 	if r.rdb != nil {
 		if cached, err := r.rdb.Get(ctx, cacheKey).Result(); err == nil {
@@ -75,8 +104,9 @@ func (r *PostRepository) List(ctx context.Context, page, limit int, q string) (d
 		}
 	}
 
-	db := r.db.Model(&models.Post{}).Where("is_active = ?", true).Order("created_at desc")
+	db := r.db.WithContext(ctx).Model(&models.Post{}).Where("is_active = ?", true).Order("created_at desc")
 
+	qNorm := strings.TrimSpace(q)
 	if qNorm != "" {
 		db = db.Where("title ILIKE ?", "%"+qNorm+"%")
 	}
@@ -94,7 +124,7 @@ func (r *PostRepository) List(ctx context.Context, page, limit int, q string) (d
 
 	respPosts := make([]dto.PostResponse, 0, len(posts))
 	for _, p := range posts {
-		respPosts = append(respPosts, postToResp(p))
+		respPosts = append(respPosts, utils.PostToResp(p))
 	}
 
 	out := dto.PostListResponse{
@@ -114,15 +144,64 @@ func (r *PostRepository) List(ctx context.Context, page, limit int, q string) (d
 
 }
 
-func postToResp(p models.Post) dto.PostResponse {
-	return dto.PostResponse{
-		ID:        p.ID,
-		Title:     p.Title,
-		Text:      p.Text,
-		Slug:      p.Slug,
-		UserID:    p.UserID,
-		IsActive:  p.IsActive,
-		CreatedAt: p.CreatedAt.Format("02.01.2006 15:04"),
-		UpdatedAt: p.CreatedAt.Format("02.01.2006 15:04"),
+func (r *PostRepository) Create(ctx context.Context, uid uint, title, text string) (*models.Post, error) {
+	slug, err := helpers.GenerateUniqueSlug(title)
+	if err != nil {
+		return nil, err
 	}
+
+	post := &models.Post{
+		Title:  title,
+		Text:   text,
+		Slug:   slug,
+		UserID: uid,
+	}
+
+	if err := r.db.WithContext(ctx).Create(post).Error; err != nil {
+		return nil, err
+	}
+
+	r.bumpListVersion(ctx)
+
+	return post, nil
+}
+
+func (r *PostRepository) UpdateOwnedBy(ctx context.Context, slug string, uid uint, updates map[string]any) (*models.Post, error) {
+	var post models.Post
+	if err := r.db.WithContext(ctx).Where("slug = ? AND user_id = ? AND is_active = ?", slug, uid, true).First(&post).Error; err != nil {
+		return nil, err
+	}
+
+	if err := r.db.WithContext(ctx).Model(&post).Updates(updates).Error; err != nil {
+		return nil, err
+	}
+
+	if err := r.db.WithContext(ctx).First(&post, post.ID).Error; err != nil {
+		return nil, err
+	}
+
+	if r.rdb != nil {
+		_ = r.rdb.Del(ctx, postBySlugKey(slug)).Err()
+	}
+	r.bumpListVersion(ctx)
+
+	return &post, nil
+}
+
+func (r *PostRepository) DeleteOwnedBy(ctx context.Context, slug string, uid uint) error {
+	var post models.Post
+	if err := r.db.WithContext(ctx).Where("slug = ? AND user_id = ? AND is_active = ?", slug, uid, true).First(&post).Error; err != nil {
+		return err
+	}
+
+	if err := r.db.WithContext(ctx).Delete(&post).Error; err != nil {
+		return err
+	}
+
+	if r.rdb != nil {
+		_ = r.rdb.Del(ctx, postBySlugKey(slug)).Err()
+	}
+	r.bumpListVersion(ctx)
+
+	return nil
 }

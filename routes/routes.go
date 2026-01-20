@@ -1,21 +1,20 @@
 package routes
 
 import (
-	"net/http"
-
 	"github.com/gin-gonic/gin"
+	"go_blog/config"
+	"go_blog/internal/repositories"
 )
 
 func SetupRoutes() *gin.Engine {
 	r := gin.Default()
 
-	r.GET("/", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"message": "welcome"})
-	})
+	postRepo := repositories.NewPostRepository(config.DB, config.RDB)
+	commentRepo := repositories.NewCommentRepository(config.DB)
 
 	RegisterAuthRoutes(r)
 	RegisterUserRoutes(r)
-	RegisterPostRoutes(r)
+	RegisterPostRoutes(r, postRepo, commentRepo)
 
 	return r
 }
