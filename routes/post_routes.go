@@ -10,13 +10,14 @@ import (
 
 func RegisterPostRoutes(r *gin.Engine,
 	postRepo *repositories.PostRepository,
-	commentRepo *repositories.CommentRepository) {
+	commentRepo *repositories.CommentRepository,
+	likeRepo *repositories.LikeRepository) {
 	r.GET("/posts", controllers.ListPosts(postRepo))
 	r.GET("/posts/:slug", controllers.GetPost(postRepo))
 
 	r.GET("/posts/:slug/comments", controllers.ListCommentsForPost(commentRepo))
 
-	r.GET("/posts/:slug/likes", controllers.GetPostLikes)
+	r.GET("/posts/:slug/likes", controllers.GetPostLikes(likeRepo))
 
 	auth := r.Group("/posts")
 	auth.Use(middleware.RequireAuth())
@@ -25,8 +26,8 @@ func RegisterPostRoutes(r *gin.Engine,
 	auth.PUT("/:slug", controllers.UpdatePost(postRepo))
 	auth.DELETE("/:slug", controllers.DeletePost(postRepo))
 
-	auth.POST("/:slug/like", controllers.LikePost)
-	auth.DELETE("/:slug/like", controllers.UnlikePost)
+	auth.POST("/:slug/like", controllers.LikePost(likeRepo))
+	auth.DELETE("/:slug/like", controllers.UnlikePost(likeRepo))
 
 	auth.POST("/:slug/comments", controllers.CreateComment(commentRepo))
 	auth.DELETE("/comments/:id", controllers.DeleteComment(commentRepo))

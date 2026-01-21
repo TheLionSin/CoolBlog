@@ -8,3 +8,9 @@ type UserResponse struct {
 	Email    string        `json:"email"`
 	Posts    []models.Post `json:"posts"`
 }
+
+type UserMeResponse struct {
+	ID       uint   `json:"id"`
+	Nickname string `json:"nickname"`
+	Email    string `json:"email"`
+}
