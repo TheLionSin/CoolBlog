@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"go_blog/models"
+
 	"gorm.io/gorm"
 )
 
@@ -47,7 +48,7 @@ func (r *LikeRepository) Unlike(ctx context.Context, postSlug string, userID uin
 		return err
 	}
 
-	return r.db.WithContext(ctx).Where("post_id = ? AND user_id = ?", postID, userID).Delete(&models.PostLike{}).Error
+	return r.db.WithContext(ctx).Unscoped().Where("post_id = ? AND user_id = ?", postID, userID).Delete(&models.PostLike{}).Error
 }
 
 func (r *LikeRepository) CountByPostSlug(ctx context.Context, postSlug string) (int64, error) {

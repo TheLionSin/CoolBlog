@@ -8,16 +8,17 @@ import (
 	"go_blog/models"
 	"go_blog/stores"
 	"go_blog/utils"
-	"gorm.io/gorm"
 	"time"
+
+	"gorm.io/gorm"
 )
 
 type AuthService struct {
 	users  *repositories.UserRepository
-	tokens *stores.RefreshRedisStore
+	tokens stores.RefreshStore
 }
 
-func NewAuthService(users *repositories.UserRepository, tokens *stores.RefreshRedisStore) *AuthService {
+func NewAuthService(users *repositories.UserRepository, tokens stores.RefreshStore) *AuthService {
 	return &AuthService{users: users, tokens: tokens}
 }
 
@@ -27,14 +28,12 @@ func (s *AuthService) Register(ctx context.Context, req dto.RegisterRequest) (dt
 		return dto.RegisterResponse{}, err
 	}
 
-	user := models.User{
+	user := &models.User{
 		Nickname: req.Nickname,
 		Email:    req.Email,
-		Password: hash,
-		IsActive: true,
-		Role:     "user"}
+		Password: hash}
 
-	if err := s.users.Create(ctx, &user); err != nil {
+	if err := s.users.Create(ctx, user); err != nil {
 		return dto.RegisterResponse{}, err
 	}
 
@@ -64,8 +63,7 @@ func (s *AuthService) Login(ctx context.Context, req dto.LoginRequest) (dto.Toke
 		return dto.TokenPairResponse{}, ErrToken
 	}
 
-	ttl := time.Until(exp)
-	if err := s.tokens.Save(ctx, user.ID, hash, ttl); err != nil {
+	if err := s.tokens.Save(ctx, user.ID, hash, time.Until(exp)); err != nil {
 		return dto.TokenPairResponse{}, err
 	}
 
@@ -78,12 +76,15 @@ func (s *AuthService) Login(ctx context.Context, req dto.LoginRequest) (dto.Toke
 func (s *AuthService) Refresh(ctx context.Context, refreshPlain string) (dto.TokenPairResponse, error) {
 	oldHash := utils.HashRefresh(refreshPlain)
 
-	uid, err := s.tokens.GetUserIDByHash(ctx, oldHash)
+	userID, err := s.tokens.GetUserIDByHash(ctx, oldHash)
 	if err != nil {
-		return dto.TokenPairResponse{}, ErrInvalidRefresh
+		if errors.Is(err, stores.ErrInvalidRefresh) {
+			return dto.TokenPairResponse{}, ErrInvalidRefresh
+		}
+		return dto.TokenPairResponse{}, err
 	}
 
-	user, err := s.users.FindByID(ctx, uid)
+	user, err := s.users.FindByID(ctx, userID)
 	if err != nil {
 		return dto.TokenPairResponse{}, err
 	}
@@ -98,9 +99,7 @@ func (s *AuthService) Refresh(ctx context.Context, refreshPlain string) (dto.Tok
 		return dto.TokenPairResponse{}, ErrToken
 	}
 
-	ttl := time.Until(exp)
-
-	if err := s.tokens.Rotate(ctx, oldHash, user.ID, newHash, ttl); err != nil {
+	if err := s.tokens.Rotate(ctx, oldHash, user.ID, newHash, time.Until(exp)); err != nil {
 		return dto.TokenPairResponse{}, err
 	}
 
@@ -112,5 +111,14 @@ func (s *AuthService) Refresh(ctx context.Context, refreshPlain string) (dto.Tok
 
 func (s *AuthService) Logout(ctx context.Context, refreshPlain string) error {
 	hash := utils.HashRefresh(refreshPlain)
-	return s.tokens.RevokeByHash(ctx, hash)
+
+	userID, err := s.tokens.GetUserIDByHash(ctx, hash)
+	if err != nil {
+		if errors.Is(err, stores.ErrInvalidRefresh) {
+			return nil
+		}
+		return err
+	}
+
+	return s.tokens.Delete(ctx, hash, userID)
 }

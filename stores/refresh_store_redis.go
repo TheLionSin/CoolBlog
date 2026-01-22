@@ -3,12 +3,20 @@ package stores
 import (
 	"context"
 	"errors"
-	"github.com/redis/go-redis/v9"
 	"go_blog/utils"
 	"time"
+
+	"github.com/redis/go-redis/v9"
 )
 
 var ErrInvalidRefresh = errors.New("invalid refresh token")
+
+type RefreshStore interface {
+	Save(ctx context.Context, userID uint, hash string, ttl time.Duration) error
+	GetUserIDByHash(ctx context.Context, hash string) (uint, error)
+	Rotate(ctx context.Context, oldHash string, userID uint, newHash string, ttl time.Duration) error
+	Delete(ctx context.Context, hash string, userID uint) error
+}
 
 type RefreshRedisStore struct {
 	rdb *redis.Client
@@ -22,47 +30,49 @@ func NewRefreshRedisStore(rdb *redis.Client) *RefreshRedisStore {
 // refresh:user:<id>    -> hash
 
 func (s *RefreshRedisStore) Save(ctx context.Context, userID uint, hash string, ttl time.Duration) error {
-	tokenKey := utils.RefreshTokenKey(hash)
-	userKey := utils.RefreshUserKey(userID)
+	uk := utils.RefreshUserKey(userID)
+
+	oldHash, err := s.rdb.Get(ctx, uk).Result()
+	if err == nil && oldHash != "" {
+		_ = s.rdb.Del(ctx)
+	}
 
 	pipe := s.rdb.Pipeline()
-	pipe.Set(ctx, tokenKey, userID, ttl)
-	pipe.Set(ctx, userKey, hash, ttl)
-	_, err := pipe.Exec(ctx)
+	pipe.Set(ctx, utils.RefreshTokenKey(hash), userID, ttl)
+	pipe.Set(ctx, uk, hash, ttl)
+	_, err = pipe.Exec(ctx)
 	return err
 }
 
 func (s *RefreshRedisStore) GetUserIDByHash(ctx context.Context, hash string) (uint, error) {
-	tokenKey := utils.RefreshTokenKey(hash)
-
-	uid, err := s.rdb.Get(ctx, tokenKey).Uint64()
+	u64, err := s.rdb.Get(ctx, utils.RefreshTokenKey(hash)).Uint64()
 	if err != nil {
 		return 0, ErrInvalidRefresh
 	}
-	return uint(uid), nil
+	return uint(u64), nil
 }
 
 func (s *RefreshRedisStore) Rotate(ctx context.Context, oldHash string, userID uint, newHash string, ttl time.Duration) error {
-	oldTokenKey := utils.RefreshTokenKey(oldHash)
-	userKey := utils.RefreshUserKey(userID)
-	newTokenKey := utils.RefreshTokenKey(newHash)
-
 	pipe := s.rdb.Pipeline()
-	pipe.Del(ctx, oldTokenKey)
-	pipe.Set(ctx, newTokenKey, userID, ttl)
-	pipe.Set(ctx, userKey, newHash, ttl)
+	pipe.Del(ctx, utils.RefreshTokenKey(oldHash))              // убрать старый tokenKey
+	pipe.Set(ctx, utils.RefreshTokenKey(newHash), userID, ttl) // новый tokenKey
+	pipe.Set(ctx, utils.RefreshUserKey(userID), newHash, ttl)  // обновить userKey
 	_, err := pipe.Exec(ctx)
 	return err
 }
 
-func (s *RefreshRedisStore) RevokeByHash(ctx context.Context, hash string) error {
-	tokenKey := utils.RefreshTokenKey(hash)
+func (s *RefreshRedisStore) Delete(ctx context.Context, hash string, userID uint) error {
+	tk := utils.RefreshTokenKey(hash)
+	uk := utils.RefreshUserKey(userID)
 
-	uid, err := s.rdb.Get(ctx, tokenKey).Uint64()
-	if err != nil {
-		return nil
+	pipe := s.rdb.Pipeline()
+	pipe.Del(ctx, tk)
+
+	cur, err := s.rdb.Get(ctx, uk).Result()
+	if err == nil && cur == hash {
+		pipe.Del(ctx, uk)
 	}
-	userKey := utils.RefreshUserKey(uint(uid))
 
-	return s.rdb.Del(ctx, userKey).Err()
+	_, err = pipe.Exec(ctx)
+	return err
 }
