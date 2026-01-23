@@ -3,6 +3,7 @@ package repositories
 import (
 	"context"
 	"errors"
+	"github.com/jackc/pgx/v5/pgconn"
 	"go_blog/models"
 	"gorm.io/gorm"
 )
@@ -20,6 +21,10 @@ func NewUserRepository(db *gorm.DB) *UserRepository {
 func (r *UserRepository) Create(ctx context.Context, user *models.User) error {
 	if err := r.db.WithContext(ctx).Create(user).Error; err != nil {
 		if errors.Is(err, gorm.ErrDuplicatedKey) {
+			return ErrUserExists
+		}
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
 			return ErrUserExists
 		}
 		return err

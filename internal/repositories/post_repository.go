@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"go_blog/dto"
-	"go_blog/helpers"
 	"go_blog/models"
 	"go_blog/utils"
 	"strings"
@@ -36,6 +35,26 @@ func postsListKey(ver int64, page, limit int, q string) string {
 	sum := sha256.Sum256([]byte(qNorm))
 	qh := hex.EncodeToString(sum[:8]) // короткий хэш, чтобы ключи не раздувались
 	return fmt.Sprintf("posts:list:v%d:p%d:l%d:q%s", ver, page, limit, qh)
+}
+
+func (r *PostRepository) generateUniqueSlug(ctx context.Context, title string) (string, error) {
+	base := utils.Slugify(title)
+	slug := base
+
+	for i := 1; ; i++ {
+		var count int64
+		err := r.db.WithContext(ctx).
+			Model(&models.Post{}).
+			Where("slug = ?", slug).
+			Count(&count).Error
+		if err != nil {
+			return "", err
+		}
+		if count == 0 {
+			return slug, nil
+		}
+		slug = fmt.Sprintf("%s-%d", base, i)
+	}
 }
 
 func (r *PostRepository) listVersion(ctx context.Context) int64 {
@@ -145,7 +164,7 @@ func (r *PostRepository) List(ctx context.Context, page, limit int, q string) (d
 }
 
 func (r *PostRepository) Create(ctx context.Context, uid uint, title, text string) (*models.Post, error) {
-	slug, err := helpers.GenerateUniqueSlug(title)
+	slug, err := r.generateUniqueSlug(ctx, title)
 	if err != nil {
 		return nil, err
 	}
