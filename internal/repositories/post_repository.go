@@ -61,11 +61,16 @@ func (r *PostRepository) listVersion(ctx context.Context) int64 {
 	if r.rdb == nil {
 		return 1
 	}
-	v, err := r.rdb.Get(ctx, utils.PostsListVersionKey()).Int64()
-	if err != nil {
-		return 1
+
+	key := utils.PostsListVersionKey()
+
+	v, err := r.rdb.Get(ctx, key).Int64()
+	if err == nil {
+		return v
 	}
-	return v
+
+	_ = r.rdb.Set(ctx, key, 1, 0).Err()
+	return 1
 }
 
 func (r *PostRepository) bumpListVersion(ctx context.Context) {

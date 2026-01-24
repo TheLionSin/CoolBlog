@@ -2,17 +2,22 @@ package testhelpers
 
 import (
 	"fmt"
-	"github.com/joho/godotenv"
 	"go_blog/models"
+	"os"
+	"testing"
+
+	"github.com/joho/godotenv"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
-	"os"
-	"testing"
 )
 
 func SetupTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
+
+	_ = godotenv.Load(".env.test")
+	_ = godotenv.Load("../.env.test")
+	_ = godotenv.Load("../../.env.test")
 
 	err := godotenv.Load(".env.test")
 
