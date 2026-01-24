@@ -5,9 +5,13 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="3b7f54a6-5371-4d8d-89d2-f047aeea3a43" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/services/auth_service_test.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.env.test" beforeDir="false" afterPath="$PROJECT_DIR$/.env.test" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/controllers/auth_controller_test.go" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/middleware/rate_limit_test.go" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/middleware/require_auth_test.go" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/testhelpers/http.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/testhelpers/db.go" beforeDir="false" afterPath="$PROJECT_DIR$/testhelpers/db.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/testhelpers/env.go" beforeDir="false" afterPath="$PROJECT_DIR$/testhelpers/auth_app.go" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

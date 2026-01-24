@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/joho/godotenv"
+	"github.com/stretchr/testify/require"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -37,6 +38,11 @@ func SetupTestDB(t *testing.T) *gorm.DB {
 	if err := db.AutoMigrate(&models.User{}, &models.Post{}, &models.Comment{}, &models.PostLike{}, &models.RefreshToken{}); err != nil {
 		t.Fatalf("failed to migrate: %v", err)
 	}
+
+	require.NoError(t, db.Exec("TRUNCATE TABLE users RESTART IDENTITY CASCADE").Error)
+	require.NoError(t, db.Exec("TRUNCATE TABLE posts RESTART IDENTITY CASCADE").Error)
+	require.NoError(t, db.Exec("TRUNCATE TABLE comments RESTART IDENTITY CASCADE").Error)
+	require.NoError(t, db.Exec("TRUNCATE TABLE post_likes RESTART IDENTITY CASCADE").Error)
 
 	return db
 }
