@@ -4,16 +4,17 @@ import (
 	"go_blog/controllers"
 	"go_blog/internal/repositories"
 	"go_blog/middleware"
+	"go_blog/services"
 
 	"github.com/gin-gonic/gin"
 )
 
 func RegisterPostRoutes(r *gin.Engine,
-	postRepo *repositories.PostRepository,
+	postService *services.PostService,
 	commentRepo *repositories.CommentRepository,
 	likeRepo *repositories.LikeRepository) {
-	r.GET("/posts", controllers.ListPosts(postRepo))
-	r.GET("/posts/:slug", controllers.GetPost(postRepo))
+	r.GET("/posts", controllers.ListPosts(postService))
+	r.GET("/posts/:slug", controllers.GetPost(postService))
 
 	r.GET("/posts/:slug/comments", controllers.ListCommentsForPost(commentRepo))
 
@@ -22,9 +23,9 @@ func RegisterPostRoutes(r *gin.Engine,
 	auth := r.Group("/posts")
 	auth.Use(middleware.RequireAuth())
 
-	auth.POST("", controllers.CreatePost(postRepo))
-	auth.PUT("/:slug", controllers.UpdatePost(postRepo))
-	auth.DELETE("/:slug", controllers.DeletePost(postRepo))
+	auth.POST("", controllers.CreatePost(postService))
+	auth.PUT("/:slug", controllers.UpdatePost(postService))
+	auth.DELETE("/:slug", controllers.DeletePost(postService))
 
 	auth.POST("/:slug/like", controllers.LikePost(likeRepo))
 	auth.DELETE("/:slug/like", controllers.UnlikePost(likeRepo))

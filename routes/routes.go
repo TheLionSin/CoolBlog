@@ -1,11 +1,12 @@
 package routes
 
 import (
-	"github.com/gin-gonic/gin"
 	"go_blog/config"
 	"go_blog/internal/repositories"
 	"go_blog/services"
 	"go_blog/stores"
+
+	"github.com/gin-gonic/gin"
 )
 
 func SetupRoutes() *gin.Engine {
@@ -22,10 +23,11 @@ func SetupRoutes() *gin.Engine {
 	//services
 	authService := services.NewAuthService(userRepo, refreshStore)
 	userService := services.NewUserService(userRepo)
+	postService := services.NewPostService(postRepo)
 
 	RegisterAuthRoutes(r, authService)
 	RegisterUserRoutes(r, userService)
-	RegisterPostRoutes(r, postRepo, commentRepo, likeRepo)
+	RegisterPostRoutes(r, postService, commentRepo, likeRepo)
 
 	return r
 }
