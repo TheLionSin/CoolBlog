@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"go_blog/dto"
-	"go_blog/internal/repositories"
 	"go_blog/models"
 	"go_blog/stores"
 	"go_blog/utils"
@@ -13,12 +12,17 @@ import (
 	"gorm.io/gorm"
 )
 
+type UserRepo interface {
+	Create(ctx context.Context, user *models.User) error
+	FindByEmail(ctx context.Context, email string) (*models.User, error)
+	FindByID(ctx context.Context, id uint) (*models.User, error)
+}
 type AuthService struct {
-	users  *repositories.UserRepository
+	users  UserRepo
 	tokens stores.RefreshStore
 }
 
-func NewAuthService(users *repositories.UserRepository, tokens stores.RefreshStore) *AuthService {
+func NewAuthService(users UserRepo, tokens stores.RefreshStore) *AuthService {
 	return &AuthService{users: users, tokens: tokens}
 }
 

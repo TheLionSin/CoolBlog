@@ -2,6 +2,7 @@ package controllers_test
 
 import (
 	"encoding/json"
+	"go_blog/controllers/controllers_test"
 	"go_blog/dto"
 	"go_blog/testhelpers"
 	"net/http"
@@ -11,7 +12,7 @@ import (
 )
 
 func TestAuthController_Register_OK(t *testing.T) {
-	app := testhelpers.SetupAuthTestApp(t)
+	app := controllers_test.SetupAuthTestApp(t)
 
 	req := testhelpers.NewJSONRequest("POST", "/auth/register", dto.RegisterRequest{
 		Nickname: "test",
@@ -25,7 +26,7 @@ func TestAuthController_Register_OK(t *testing.T) {
 }
 
 func TestAuthController_Register_Duplicate(t *testing.T) {
-	app := testhelpers.SetupAuthTestApp(t)
+	app := controllers_test.SetupAuthTestApp(t)
 
 	req1 := testhelpers.NewJSONRequest("POST", "/auth/register", dto.RegisterRequest{
 		Nickname: "test1",
@@ -45,7 +46,7 @@ func TestAuthController_Register_Duplicate(t *testing.T) {
 }
 
 func TestAuthController_Login_OK(t *testing.T) {
-	app := testhelpers.SetupAuthTestApp(t)
+	app := controllers_test.SetupAuthTestApp(t)
 
 	_ = testhelpers.DoRequest(app,
 		testhelpers.NewJSONRequest("POST", "/auth/register", dto.RegisterRequest{
@@ -66,7 +67,7 @@ func TestAuthController_Login_OK(t *testing.T) {
 }
 
 func TestAuthController_Login_Invalid(t *testing.T) {
-	app := testhelpers.SetupAuthTestApp(t)
+	app := controllers_test.SetupAuthTestApp(t)
 
 	resp := testhelpers.DoRequest(app,
 		testhelpers.NewJSONRequest("POST", "/auth/login", dto.LoginRequest{
@@ -79,7 +80,7 @@ func TestAuthController_Login_Invalid(t *testing.T) {
 }
 
 func TestAuthController_Refresh_OK(t *testing.T) {
-	app := testhelpers.SetupAuthTestApp(t)
+	app := controllers_test.SetupAuthTestApp(t)
 
 	// register
 	testhelpers.DoRequest(app,
@@ -120,7 +121,7 @@ func TestAuthController_Refresh_OK(t *testing.T) {
 }
 
 func TestAuthController_Logout_Idempotent(t *testing.T) {
-	app := testhelpers.SetupAuthTestApp(t)
+	app := controllers_test.SetupAuthTestApp(t)
 
 	resp := testhelpers.DoRequest(app,
 		testhelpers.NewJSONRequest("POST", "/auth/logout", dto.RefreshTokenRequest{

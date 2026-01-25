@@ -4,18 +4,26 @@ import (
 	"context"
 	"errors"
 	"go_blog/dto"
-	"go_blog/internal/repositories"
+	"go_blog/models"
 	"go_blog/utils"
 	"strings"
 
 	"gorm.io/gorm"
 )
 
-type PostService struct {
-	repo *repositories.PostRepository
+type PostRepo interface {
+	Create(ctx context.Context, uid uint, title, text string) (*models.Post, error)
+	UpdateOwnedBy(ctx context.Context, slug string, uid uint, updates map[string]any) (*models.Post, error)
+	DeleteOwnedBy(ctx context.Context, slug string, uid uint) error
+	GetBySlug(ctx context.Context, slug string) (dto.PostResponse, error)
+	List(ctx context.Context, page, limit int, q string) (dto.PostListResponse, error)
 }
 
-func NewPostService(repo *repositories.PostRepository) *PostService {
+type PostService struct {
+	repo PostRepo
+}
+
+func NewPostService(repo PostRepo) *PostService {
 	return &PostService{repo: repo}
 }
 

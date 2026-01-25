@@ -1,10 +1,11 @@
-package testhelpers
+package controllers_test
 
 import (
 	"go_blog/controllers"
 	"go_blog/internal/repositories"
 	"go_blog/services"
 	"go_blog/stores"
+	"go_blog/testhelpers"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -14,8 +15,8 @@ func SetupAuthTestApp(t *testing.T) *gin.Engine {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 
-	db := SetupTestDB(t)
-	rdb := SetupTestRedis(t)
+	db := testhelpers.SetupTestDB(t)
+	rdb := testhelpers.SetupTestRedis(t)
 
 	userRepo := repositories.NewUserRepository(db)
 	refreshStore := stores.NewRefreshRedisStore(rdb)

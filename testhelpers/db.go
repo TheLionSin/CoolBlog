@@ -1,7 +1,6 @@
 package testhelpers
 
 import (
-	"fmt"
 	"go_blog/models"
 	"os"
 	"testing"
@@ -20,8 +19,6 @@ func SetupTestDB(t *testing.T) *gorm.DB {
 	_ = godotenv.Load("../.env.test")
 	_ = godotenv.Load("../../.env.test")
 
-	err := godotenv.Load(".env.test")
-
 	dsn := os.Getenv("TEST_DB_DSN")
 	if dsn == "" {
 		t.Fatal("TEST_DB_DSN is empty (set env or .env.test)")
@@ -35,14 +32,21 @@ func SetupTestDB(t *testing.T) *gorm.DB {
 		t.Fatalf("failed to connect test db: %v", err)
 	}
 
-	if err := db.AutoMigrate(&models.User{}, &models.Post{}, &models.Comment{}, &models.PostLike{}, &models.RefreshToken{}); err != nil {
-		t.Fatalf("failed to migrate: %v", err)
-	}
+	require.NoError(t, db.Migrator().DropTable(
+		&models.PostLike{},
+		&models.Comment{},
+		&models.Post{},
+		&models.User{},
+		&models.RefreshToken{},
+	))
 
-	require.NoError(t, db.Exec("TRUNCATE TABLE users RESTART IDENTITY CASCADE").Error)
-	require.NoError(t, db.Exec("TRUNCATE TABLE posts RESTART IDENTITY CASCADE").Error)
-	require.NoError(t, db.Exec("TRUNCATE TABLE comments RESTART IDENTITY CASCADE").Error)
-	require.NoError(t, db.Exec("TRUNCATE TABLE post_likes RESTART IDENTITY CASCADE").Error)
+	require.NoError(t, db.AutoMigrate(
+		&models.User{},
+		&models.Post{},
+		&models.Comment{},
+		&models.PostLike{},
+		&models.RefreshToken{},
+	))
 
 	return db
 }
@@ -60,11 +64,4 @@ func BeginTx(t *testing.T, db *gorm.DB) *gorm.DB {
 	})
 
 	return tx
-}
-
-func RequireNotZero(t *testing.T, v any, msg string) {
-	t.Helper()
-	if fmt.Sprint(v) == "0" || fmt.Sprint(v) == "<nil>" {
-		t.Fatalf("expected not zero: %s", msg)
-	}
 }
