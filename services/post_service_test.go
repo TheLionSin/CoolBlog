@@ -3,7 +3,7 @@ package services
 import (
 	"context"
 	"errors"
-	"go_blog/dto"
+	"go_blog/internal/events"
 	"go_blog/models"
 	"testing"
 
@@ -11,12 +11,27 @@ import (
 	"gorm.io/gorm"
 )
 
+// ---- fake bus (если NewPostService(repo, bus) и Create публикует событие) ----
+
+type fakeBus struct {
+	publishFn func(ctx context.Context, e events.Envelope) error
+}
+
+func (b *fakeBus) Publish(ctx context.Context, e events.Envelope) error {
+	if b.publishFn != nil {
+		return b.publishFn(ctx, e)
+	}
+	return nil
+}
+
+// ---- fake repo ----
+
 type fakePostRepo struct {
 	createFn      func(ctx context.Context, uid uint, title, text string) (*models.Post, error)
 	updateOwnedFn func(ctx context.Context, slug string, uid uint, updates map[string]any) (*models.Post, error)
 	deleteOwnedFn func(ctx context.Context, slug string, uid uint) error
-	getBySlugFn   func(ctx context.Context, slug string) (dto.PostResponse, error)
-	listFn        func(ctx context.Context, page, limit int, q string) (dto.PostListResponse, error)
+	getBySlugFn   func(ctx context.Context, slug string) (*models.Post, error)
+	listFn        func(ctx context.Context, page, limit int, q string) ([]models.Post, int64, error)
 }
 
 func (f *fakePostRepo) Create(ctx context.Context, uid uint, title, text string) (*models.Post, error) {
@@ -28,12 +43,14 @@ func (f *fakePostRepo) UpdateOwnedBy(ctx context.Context, slug string, uid uint,
 func (f *fakePostRepo) DeleteOwnedBy(ctx context.Context, slug string, uid uint) error {
 	return f.deleteOwnedFn(ctx, slug, uid)
 }
-func (f *fakePostRepo) GetBySlug(ctx context.Context, slug string) (dto.PostResponse, error) {
+func (f *fakePostRepo) GetBySlug(ctx context.Context, slug string) (*models.Post, error) {
 	return f.getBySlugFn(ctx, slug)
 }
-func (f *fakePostRepo) List(ctx context.Context, page, limit int, q string) (dto.PostListResponse, error) {
+func (f *fakePostRepo) List(ctx context.Context, page, limit int, q string) ([]models.Post, int64, error) {
 	return f.listFn(ctx, page, limit, q)
 }
+
+// ---- tests ----
 
 func TestPostService_Create_Trims(t *testing.T) {
 	repo := &fakePostRepo{
@@ -44,14 +61,14 @@ func TestPostService_Create_Trims(t *testing.T) {
 			return &models.Post{Slug: "hello", Title: title, Text: text, UserID: uid, IsActive: true}, nil
 		},
 	}
-	svc := NewPostService(repo)
 
-	out, err := svc.Create(context.Background(), 10, dto.PostCreateRequest{
-		Title: "  Hello  ",
-		Text:  "  World ",
-	})
+	bus := &fakeBus{} // Create публикует — пусть будет no-op
+	svc := NewPostService(repo, bus)
+
+	out, err := svc.Create(context.Background(), 10, "  Hello  ", "  World ")
 	require.NoError(t, err)
 	require.Equal(t, "Hello", out.Title)
+	require.Equal(t, "World", out.Text)
 }
 
 func TestPostService_Update_NoFields(t *testing.T) {
@@ -61,9 +78,10 @@ func TestPostService_Update_NoFields(t *testing.T) {
 			return nil, nil
 		},
 	}
-	svc := NewPostService(repo)
+	bus := &fakeBus{}
+	svc := NewPostService(repo, bus)
 
-	_, err := svc.Update(context.Background(), "x", 1, dto.PostUpdateRequest{})
+	_, err := svc.Update(context.Background(), "x", 1, nil, nil)
 	require.ErrorIs(t, err, ErrNoFieldsToUpdate)
 }
 
@@ -79,12 +97,10 @@ func TestPostService_Update_TrimsAndMapsNotFound(t *testing.T) {
 			return nil, gorm.ErrRecordNotFound
 		},
 	}
-	svc := NewPostService(repo)
+	bus := &fakeBus{}
+	svc := NewPostService(repo, bus)
 
-	_, err := svc.Update(context.Background(), "slug", 7, dto.PostUpdateRequest{
-		Title: &title,
-		Text:  &text,
-	})
+	_, err := svc.Update(context.Background(), "slug", 7, &title, &text)
 	require.ErrorIs(t, err, ErrPostNotFound)
 }
 
@@ -96,9 +112,10 @@ func TestPostService_Update_RepoErrorPassesThrough(t *testing.T) {
 			return nil, want
 		},
 	}
-	svc := NewPostService(repo)
+	bus := &fakeBus{}
+	svc := NewPostService(repo, bus)
 
-	_, err := svc.Update(context.Background(), "s", 1, dto.PostUpdateRequest{Title: &title})
+	_, err := svc.Update(context.Background(), "s", 1, &title, nil)
 	require.ErrorIs(t, err, want)
 }
 
@@ -108,7 +125,8 @@ func TestPostService_Delete_MapsNotFound(t *testing.T) {
 			return gorm.ErrRecordNotFound
 		},
 	}
-	svc := NewPostService(repo)
+	bus := &fakeBus{}
+	svc := NewPostService(repo, bus)
 
 	err := svc.Delete(context.Background(), "slug", 1)
 	require.ErrorIs(t, err, ErrPostNotFound)
@@ -116,11 +134,12 @@ func TestPostService_Delete_MapsNotFound(t *testing.T) {
 
 func TestPostService_Get_MapsNotFound(t *testing.T) {
 	repo := &fakePostRepo{
-		getBySlugFn: func(ctx context.Context, slug string) (dto.PostResponse, error) {
-			return dto.PostResponse{}, gorm.ErrRecordNotFound
+		getBySlugFn: func(ctx context.Context, slug string) (*models.Post, error) {
+			return nil, gorm.ErrRecordNotFound
 		},
 	}
-	svc := NewPostService(repo)
+	bus := &fakeBus{}
+	svc := NewPostService(repo, bus)
 
 	_, err := svc.Get(context.Background(), "slug")
 	require.ErrorIs(t, err, ErrPostNotFound)
@@ -128,16 +147,21 @@ func TestPostService_Get_MapsNotFound(t *testing.T) {
 
 func TestPostService_List_PassesThrough(t *testing.T) {
 	repo := &fakePostRepo{
-		listFn: func(ctx context.Context, page, limit int, q string) (dto.PostListResponse, error) {
+		listFn: func(ctx context.Context, page, limit int, q string) ([]models.Post, int64, error) {
 			require.Equal(t, 2, page)
 			require.Equal(t, 5, limit)
 			require.Equal(t, "go", q)
-			return dto.PostListResponse{Ok: true, Page: page, Limit: limit, Total: 123}, nil
+			return []models.Post{
+				{Slug: "a", Title: "A"},
+				{Slug: "b", Title: "B"},
+			}, 123, nil
 		},
 	}
-	svc := NewPostService(repo)
+	bus := &fakeBus{}
+	svc := NewPostService(repo, bus)
 
-	out, err := svc.List(context.Background(), 2, 5, "go")
+	posts, total, err := svc.List(context.Background(), 2, 5, "go")
 	require.NoError(t, err)
-	require.Equal(t, int64(123), out.Total)
+	require.Len(t, posts, 2)
+	require.Equal(t, int64(123), total)
 }

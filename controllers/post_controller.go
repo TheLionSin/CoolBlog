@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"go_blog/dto"
@@ -35,13 +36,13 @@ func CreatePost(postService *services.PostService) gin.HandlerFunc {
 			return
 		}
 
-		resp, err := postService.Create(c.Request.Context(), uid, req)
+		post, err := postService.Create(context.Background(), uid, req.Title, req.Text)
 		if err != nil {
 			utils.RespondError(c, http.StatusInternalServerError, "failed to create post")
 			return
 		}
 
-		utils.RespondOK(c, resp)
+		utils.RespondOK(c, utils.PostToResp(*post))
 
 	}
 }
@@ -69,7 +70,7 @@ func UpdatePost(postService *services.PostService) gin.HandlerFunc {
 			return
 		}
 
-		resp, err := postService.Update(c.Request.Context(), slug, uid, req)
+		post, err := postService.Update(context.Background(), slug, uid, req.Title, req.Text)
 		if err != nil {
 			switch {
 			case errors.Is(err, services.ErrNoFieldsToUpdate):
@@ -82,7 +83,7 @@ func UpdatePost(postService *services.PostService) gin.HandlerFunc {
 			return
 		}
 
-		utils.RespondOK(c, resp)
+		utils.RespondOK(c, utils.PostToResp(*post))
 
 	}
 }
@@ -134,12 +135,26 @@ func ListPosts(postService *services.PostService) gin.HandlerFunc {
 		page, limit := utils.GetPage(c)
 		q := c.Query("q")
 
-		out, err := postService.List(c.Request.Context(), page, limit, q)
+		posts, total, err := postService.List(c.Request.Context(), page, limit, q)
 		if err != nil {
 			utils.RespondError(c, http.StatusInternalServerError, "failed to list posts")
 			return
 		}
 
+		respPosts := make([]dto.PostResponse, 0, len(posts))
+		for i := range posts {
+			respPosts = append(respPosts, utils.PostToResp(posts[i]))
+		}
+
+		out := dto.PostListResponse{
+			Ok:    true,
+			Page:  page,
+			Limit: limit,
+			Total: total,
+			Posts: respPosts,
+		}
+
 		utils.RespondOK(c, out)
+
 	}
 }

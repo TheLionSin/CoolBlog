@@ -36,6 +36,7 @@ func TestPostRepository_GetBySlug_CacheHit(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "Cached", resp1.Title)
 
+	// удаляем из БД, но кэш должен отдать старое
 	require.NoError(t, tx.Unscoped().Delete(&models.Post{}, post.ID).Error)
 
 	resp2, err := repo.GetBySlug(context.Background(), "cached")
@@ -44,7 +45,6 @@ func TestPostRepository_GetBySlug_CacheHit(t *testing.T) {
 }
 
 func TestPostRepository_GetBySlug_CacheInvalidatedOnUpdate(t *testing.T) {
-
 	db := testhelpers.SetupTestDB(t)
 	tx := testhelpers.BeginTx(t, db)
 	rdb := testhelpers.SetupTestRedis(t)
@@ -71,17 +71,16 @@ func TestPostRepository_GetBySlug_CacheInvalidatedOnUpdate(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "Old", resp1.Title)
 
-	_, err = repo.UpdateOwnedBy(context.Background(), "upd", user.ID, map[string]any{"Title": "New"})
+	// важно: ключ "title" (как в твоём repo updates map)
+	_, err = repo.UpdateOwnedBy(context.Background(), "upd", user.ID, map[string]any{"title": "New"})
 	require.NoError(t, err)
 
 	resp2, err := repo.GetBySlug(context.Background(), "upd")
 	require.NoError(t, err)
 	require.Equal(t, "New", resp2.Title)
-
 }
 
 func TestPostRepository_List_CacheVersioned(t *testing.T) {
-
 	db := testhelpers.SetupTestDB(t)
 	tx := testhelpers.BeginTx(t, db)
 	rdb := testhelpers.SetupTestRedis(t)
@@ -103,15 +102,16 @@ func TestPostRepository_List_CacheVersioned(t *testing.T) {
 		IsActive: true,
 	}).Error)
 
-	out1, err := repo.List(context.Background(), 1, 10, "")
+	posts1, total1, err := repo.List(context.Background(), 1, 10, "")
 	require.NoError(t, err)
-	require.Equal(t, int64(1), out1.Total)
+	require.Equal(t, int64(1), total1)
+	require.Len(t, posts1, 1)
 
 	_, err = repo.Create(context.Background(), user.ID, "Two", "text")
 	require.NoError(t, err)
 
-	out2, err := repo.List(context.Background(), 1, 10, "")
+	posts2, total2, err := repo.List(context.Background(), 1, 10, "")
 	require.NoError(t, err)
-	require.Equal(t, int64(2), out2.Total)
-
+	require.Equal(t, int64(2), total2)
+	require.Len(t, posts2, 2)
 }

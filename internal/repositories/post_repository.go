@@ -5,9 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"go_blog/dto"
 	"go_blog/models"
 	"go_blog/utils"
 	"strings"
@@ -80,55 +78,55 @@ func (r *PostRepository) bumpListVersion(ctx context.Context) {
 	_ = r.rdb.Incr(ctx, utils.PostsListVersionKey()).Err()
 }
 
-func (r *PostRepository) GetBySlug(ctx context.Context, slug string) (dto.PostResponse, error) {
+func (r *PostRepository) GetBySlug(ctx context.Context, slug string) (*models.Post, error) {
 	cacheKey := postBySlugKey(slug)
 
 	if r.rdb != nil {
 		if cached, err := r.rdb.Get(ctx, cacheKey).Result(); err == nil {
-			var resp dto.PostResponse
-			if json.Unmarshal([]byte(cached), &resp) == nil {
-				return resp, nil
+			var cp cachedPost
+			if json.Unmarshal([]byte(cached), &cp) == nil {
+				return cp.toModel(), nil
 			}
 		}
 	}
 
 	var post models.Post
-	if err := r.db.Where("slug = ? AND is_active = ?", slug, true).First(&post).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return dto.PostResponse{}, err
-		}
-		return dto.PostResponse{}, err
+	if err := r.db.WithContext(ctx).
+		Select("id", "created_at", "updated_at", "title", "text", "slug", "user_id", "is_active").
+		Where("slug = ? AND is_active = ?", slug, true).
+		First(&post).Error; err != nil {
+		return nil, err
 	}
-
-	resp := utils.PostToResp(post)
 
 	if r.rdb != nil {
-		b, _ := json.Marshal(resp)
-		_ = r.rdb.Set(ctx, cacheKey, b, time.Minute).Err()
+		if b, err := json.Marshal(toCachedPost(post)); err == nil {
+			_ = r.rdb.Set(ctx, cacheKey, b, time.Minute).Err()
+		}
 	}
 
-	return resp, nil
-
+	return &post, nil
 }
 
-func (r *PostRepository) List(ctx context.Context, page, limit int, q string) (dto.PostListResponse, error) {
-
+func (r *PostRepository) List(ctx context.Context, page, limit int, q string) ([]models.Post, int64, error) {
 	ver := r.listVersion(ctx)
-
 	cacheKey := postsListKey(ver, page, limit, q)
 
 	if r.rdb != nil {
 		if cached, err := r.rdb.Get(ctx, cacheKey).Result(); err == nil {
-			var out dto.PostListResponse
-			if json.Unmarshal([]byte(cached), &out) == nil {
-				out.Page = page
-				out.Limit = limit
-				return out, nil
+			var cl cachedPostList
+			if json.Unmarshal([]byte(cached), &cl) == nil {
+				posts := make([]models.Post, 0, len(cl.Posts))
+				for i := range cl.Posts {
+					posts = append(posts, *cl.Posts[i].toModel())
+				}
+				return posts, cl.Total, nil
 			}
 		}
 	}
 
-	db := r.db.WithContext(ctx).Model(&models.Post{}).Where("is_active = ?", true).Order("created_at desc")
+	db := r.db.WithContext(ctx).
+		Model(&models.Post{}).
+		Where("is_active = ?", true)
 
 	qNorm := strings.TrimSpace(q)
 	if qNorm != "" {
@@ -137,35 +135,31 @@ func (r *PostRepository) List(ctx context.Context, page, limit int, q string) (d
 
 	var total int64
 	if err := db.Count(&total).Error; err != nil {
-		return dto.PostListResponse{}, err
+		return nil, 0, err
 	}
 
 	var posts []models.Post
 	offset := utils.Offset(page, limit)
-	if err := db.Limit(limit).Offset(offset).Find(&posts).Error; err != nil {
-		return dto.PostListResponse{}, err
-	}
-
-	respPosts := make([]dto.PostResponse, 0, len(posts))
-	for _, p := range posts {
-		respPosts = append(respPosts, utils.PostToResp(p))
-	}
-
-	out := dto.PostListResponse{
-		Ok:    true,
-		Page:  page,
-		Limit: limit,
-		Total: total,
-		Posts: respPosts,
+	if err := db.
+		Select("id", "created_at", "updated_at", "title", "text", "slug", "user_id", "is_active").
+		Order("created_at desc").
+		Limit(limit).
+		Offset(offset).
+		Find(&posts).Error; err != nil {
+		return nil, 0, err
 	}
 
 	if r.rdb != nil {
-		b, _ := json.Marshal(out)
-		_ = r.rdb.Set(ctx, cacheKey, b, 30*time.Second).Err()
+		cposts := make([]cachedPost, 0, len(posts))
+		for i := range posts {
+			cposts = append(cposts, toCachedPost(posts[i]))
+		}
+		if b, err := json.Marshal(cachedPostList{Total: total, Posts: cposts}); err == nil {
+			_ = r.rdb.Set(ctx, cacheKey, b, 30*time.Second).Err()
+		}
 	}
 
-	return out, nil
-
+	return posts, total, nil
 }
 
 func (r *PostRepository) Create(ctx context.Context, uid uint, title, text string) (*models.Post, error) {

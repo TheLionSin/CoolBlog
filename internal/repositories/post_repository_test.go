@@ -3,10 +3,12 @@ package repositories
 import (
 	"context"
 	"fmt"
-	"github.com/stretchr/testify/require"
 	"go_blog/models"
 	"go_blog/testhelpers"
 	"testing"
+
+	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
 )
 
 func TestPostRepository_Create_OK(t *testing.T) {
@@ -54,9 +56,10 @@ func TestPostRepository_GetBySlug_OK(t *testing.T) {
 	}
 	require.NoError(t, tx.Create(post).Error)
 
-	resp, err := repo.GetBySlug(context.Background(), "title")
+	got, err := repo.GetBySlug(context.Background(), "title")
 	require.NoError(t, err)
-	require.Equal(t, "Title", resp.Title)
+	require.Equal(t, "Title", got.Title)
+	require.Equal(t, "Text", got.Text)
 }
 
 func TestPostRepository_GetBySlug_Inactive(t *testing.T) {
@@ -77,10 +80,11 @@ func TestPostRepository_GetBySlug_Inactive(t *testing.T) {
 		Title:    "Hidden",
 		Slug:     "hidden",
 		UserID:   user.ID,
-		IsActive: false,
+		IsActive: true, // создаём как active
 	}
 	require.NoError(t, tx.Create(post).Error)
 
+	// теперь гарантированно делаем inactive в БД
 	require.NoError(t,
 		tx.Model(&models.Post{}).
 			Where("id = ?", post.ID).
@@ -115,11 +119,11 @@ func TestPostRepository_List_OK(t *testing.T) {
 		require.NoError(t, tx.Create(p).Error)
 	}
 
-	out, err := repo.List(context.Background(), 1, 10, "")
+	posts, total, err := repo.List(context.Background(), 1, 10, "")
 	require.NoError(t, err)
 
-	require.Equal(t, int64(5), out.Total)
-	require.Len(t, out.Posts, 5)
+	require.Equal(t, int64(5), total)
+	require.Len(t, posts, 5)
 }
 
 func TestPostRepository_List_Search(t *testing.T) {
@@ -150,12 +154,12 @@ func TestPostRepository_List_Search(t *testing.T) {
 		IsActive: true,
 	}).Error)
 
-	out, err := repo.List(context.Background(), 1, 10, "go")
+	posts, total, err := repo.List(context.Background(), 1, 10, "go")
 	require.NoError(t, err)
 
-	require.Equal(t, int64(1), out.Total)
-	require.Equal(t, "Go tutorial", out.Posts[0].Title)
-
+	require.Equal(t, int64(1), total)
+	require.Len(t, posts, 1)
+	require.Equal(t, "Go tutorial", posts[0].Title)
 }
 
 func TestPostRepository_UpdateOwnedBy_OK(t *testing.T) {
@@ -184,7 +188,7 @@ func TestPostRepository_UpdateOwnedBy_OK(t *testing.T) {
 		context.Background(),
 		"old",
 		owner.ID,
-		map[string]any{"title": "New"},
+		map[string]any{"title": "New"}, // важно: "title" (как в твоём repo updates map)
 	)
 	require.NoError(t, err)
 	require.Equal(t, "New", updated.Title)
@@ -255,4 +259,5 @@ func TestPostRepository_DeleteOwnedBy_OK(t *testing.T) {
 
 	_, err = repo.GetBySlug(context.Background(), "del")
 	require.Error(t, err)
+	require.ErrorIs(t, err, gorm.ErrRecordNotFound)
 }
