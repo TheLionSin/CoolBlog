@@ -2,7 +2,8 @@ package routes
 
 import (
 	"go_blog/config"
-	"go_blog/internal/adapters/eventbus/inmem"
+
+	kafkaBus "go_blog/internal/adapters/eventbus/kafka"
 	"go_blog/internal/repositories"
 	"go_blog/services"
 	"go_blog/stores"
@@ -17,7 +18,7 @@ func SetupRoutes() *gin.Engine {
 	commentRepo := repositories.NewCommentRepository(config.DB)
 	likeRepo := repositories.NewLikeRepository(config.DB)
 	userRepo := repositories.NewUserRepository(config.DB)
-	bus := inmem.New()
+	bus := kafkaBus.New([]string{"localhost:9092"}, "blog.events")
 
 	//stores
 	refreshStore := stores.NewRefreshRedisStore(config.RDB)

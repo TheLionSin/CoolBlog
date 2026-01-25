@@ -8,6 +8,7 @@ import (
 	"go_blog/internal/events"
 	"go_blog/internal/ports"
 	"go_blog/models"
+	"log"
 	"strings"
 	"time"
 
@@ -50,7 +51,7 @@ func (s *PostService) Create(ctx context.Context, uid uint, title, text string) 
 		return nil, err
 	}
 
-	if err := s.bus.Publish(ctx, events.Envelope{
+	env := events.Envelope{
 		EventID:       uuid.NewString(),
 		EventType:     "PostCreated",
 		OccurredAt:    time.Now().UTC(),
@@ -59,8 +60,11 @@ func (s *PostService) Create(ctx context.Context, uid uint, title, text string) 
 		ActorUserID:   uintToString(uid),
 		Version:       1,
 		Payload:       payload,
-	}); err != nil {
-		return nil, err
+	}
+
+	if err := s.bus.Publish(ctx, env); err != nil {
+		log.Printf("KAFKA PUBLISH FAILED: %v", err) // <-- КЛЮЧЕВО
+		// НЕ return err
 	}
 
 	return post, nil
