@@ -6,9 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"go_blog/internal/events"
-	"go_blog/internal/ports"
+	"go_blog/internal/repositories"
 	"go_blog/models"
-	"log"
 	"strings"
 	"time"
 
@@ -25,49 +24,70 @@ type PostRepo interface {
 }
 
 type PostService struct {
-	repo PostRepo
-	bus  ports.EventBus
+	db     *gorm.DB
+	repo   *repositories.PostRepository
+	outbox *repositories.OutboxRepository
 }
 
-func NewPostService(repo PostRepo, bus ports.EventBus) *PostService {
-	return &PostService{repo: repo, bus: bus}
+func NewPostService(db *gorm.DB, repo *repositories.PostRepository, outbox *repositories.OutboxRepository) *PostService {
+	return &PostService{db: db, repo: repo, outbox: outbox}
 }
 
 func (s *PostService) Create(ctx context.Context, uid uint, title, text string) (*models.Post, error) {
 	title = strings.TrimSpace(title)
 	text = strings.TrimSpace(text)
 
-	post, err := s.repo.Create(ctx, uid, title, text)
-	if err != nil {
-		return nil, err
-	}
+	var created *models.Post
 
-	payload, err := json.Marshal(events.PostCreatedPayload{
-		PostID: uintToString(post.ID),
-		Title:  post.Title,
-		Slug:   post.Slug,
+	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		post, err := s.repo.CreateTx(ctx, tx, uid, title, text)
+		if err != nil {
+			return err
+		}
+
+		created = post
+
+		payloadBytes, err := json.Marshal(events.PostCreatedPayload{
+			PostID: uintToString(post.ID),
+			Title:  post.Title,
+			Slug:   post.Slug,
+		})
+		if err != nil {
+			return err
+		}
+
+		env := events.Envelope{
+			EventID:       uuid.NewString(),
+			EventType:     "PostCreated",
+			OccurredAt:    time.Now().UTC(),
+			AggregateType: "post",
+			AggregateID:   uintToString(post.ID),
+			ActorUserID:   uintToString(uid),
+			Version:       1,
+			Payload:       payloadBytes,
+		}
+
+		out := &models.OutboxEvent{
+			EventID:       env.EventID,
+			Topic:         "blog.events",
+			EventType:     env.EventType,
+			AggregateType: env.AggregateType,
+			AggregateID:   env.AggregateID,
+			ActorUserID:   env.ActorUserID,
+			Payload:       string(env.Payload),
+			OccurredAt:    env.OccurredAt,
+			Status:        models.OutboxNew,
+		}
+
+		return s.outbox.CreateTx(ctx, tx, out)
 	})
+
 	if err != nil {
 		return nil, err
 	}
 
-	env := events.Envelope{
-		EventID:       uuid.NewString(),
-		EventType:     "PostCreated",
-		OccurredAt:    time.Now().UTC(),
-		AggregateType: "post",
-		AggregateID:   uintToString(post.ID),
-		ActorUserID:   uintToString(uid),
-		Version:       1,
-		Payload:       payload,
-	}
+	return created, nil
 
-	if err := s.bus.Publish(ctx, env); err != nil {
-		log.Printf("KAFKA PUBLISH FAILED: %v", err) // <-- КЛЮЧЕВО
-		// НЕ return err
-	}
-
-	return post, nil
 }
 
 func (s *PostService) Update(ctx context.Context, slug string, uid uint, title, text *string) (*models.Post, error) {

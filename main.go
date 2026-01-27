@@ -10,8 +10,8 @@ func main() {
 
 	config.ConnectDB()
 	config.InitRedis()
-	config.DB.AutoMigrate(&models.User{}, &models.Post{}, &models.RefreshToken{}, &models.PostLike{}, &models.Comment{}, &models.AuditLog{})
-	
+	config.DB.AutoMigrate(&models.User{}, &models.Post{}, &models.RefreshToken{}, &models.PostLike{}, &models.Comment{}, &models.AuditLog{}, &models.OutboxEvent{})
+
 	r := routes.SetupRoutes()
 
 	r.Run(":8080")

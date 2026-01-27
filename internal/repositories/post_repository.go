@@ -35,24 +35,38 @@ func postsListKey(ver int64, page, limit int, q string) string {
 	return fmt.Sprintf("posts:list:v%d:p%d:l%d:q%s", ver, page, limit, qh)
 }
 
-func (r *PostRepository) generateUniqueSlug(ctx context.Context, title string) (string, error) {
+func generateUniqueSlugWithDB(
+	ctx context.Context,
+	db *gorm.DB,
+	title string,
+) (string, error) {
+
 	base := utils.Slugify(title)
 	slug := base
 
 	for i := 1; ; i++ {
 		var count int64
-		err := r.db.WithContext(ctx).
+		err := db.WithContext(ctx).
 			Model(&models.Post{}).
 			Where("slug = ?", slug).
 			Count(&count).Error
 		if err != nil {
 			return "", err
 		}
+
 		if count == 0 {
 			return slug, nil
 		}
+
 		slug = fmt.Sprintf("%s-%d", base, i)
 	}
+}
+
+func (r *PostRepository) generateUniqueSlug(
+	ctx context.Context,
+	title string,
+) (string, error) {
+	return generateUniqueSlugWithDB(ctx, r.db, title)
 }
 
 func (r *PostRepository) listVersion(ctx context.Context) int64 {
@@ -179,6 +193,30 @@ func (r *PostRepository) Create(ctx context.Context, uid uint, title, text strin
 		return nil, err
 	}
 
+	r.bumpListVersion(ctx)
+
+	return post, nil
+}
+
+func (r *PostRepository) CreateTx(ctx context.Context, tx *gorm.DB, uid uint, title, text string) (*models.Post, error) {
+	slug, err := generateUniqueSlugWithDB(ctx, tx, title)
+	if err != nil {
+		return nil, err
+	}
+
+	post := &models.Post{
+		Title:  title,
+		Text:   text,
+		Slug:   slug,
+		UserID: uid,
+	}
+
+	if err := tx.WithContext(ctx).Create(post).Error; err != nil {
+		return nil, err
+	}
+
+	// bumpListVersion: тут нюанс — он трогает Redis.
+	// В проде bump делается тоже через outbox/событие, но сейчас оставим как есть или вынесем позже.
 	r.bumpListVersion(ctx)
 
 	return post, nil

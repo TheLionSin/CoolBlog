@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"github.com/segmentio/kafka-go"
 	"go_blog/config"
 	"go_blog/internal/events"
 	"go_blog/internal/repositories"
@@ -12,6 +11,8 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/segmentio/kafka-go"
 )
 
 func main() {
@@ -38,8 +39,8 @@ func main() {
 		log.Println("waiting message...")
 		msg, err := reader.FetchMessage(ctx)
 		if err != nil {
-			log.Println("waiting message...")
-			return
+			log.Printf("fetch error: %v", err)
+			continue
 		}
 		log.Printf("got message offset=%d", msg.Offset)
 
