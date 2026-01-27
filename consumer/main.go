@@ -35,15 +35,17 @@ func main() {
 	log.Println("audit consumer started")
 
 	for {
-		msg, err := reader.ReadMessage(ctx)
+		log.Println("waiting message...")
+		msg, err := reader.FetchMessage(ctx)
 		if err != nil {
-			log.Println("consumer stopped:", err)
+			log.Println("waiting message...")
 			return
 		}
+		log.Printf("got message offset=%d", msg.Offset)
 
 		var env events.Envelope
 		if err := json.Unmarshal(msg.Value, &env); err != nil {
-			log.Println("Invalid event:", err)
+			log.Println("invalid event:", err)
 			continue
 		}
 
@@ -59,7 +61,13 @@ func main() {
 
 		if err := auditRepo.Create(ctx, &logEntry); err != nil {
 			log.Println("failed to save audit log:", err)
+			continue
+		}
+
+		log.Printf("processing event %s offset=%d", env.EventID, msg.Offset)
+
+		if err := reader.CommitMessages(ctx, msg); err != nil {
+			log.Println("failed to commit message:", err)
 		}
 	}
-
 }
