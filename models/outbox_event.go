@@ -7,6 +7,7 @@ type OutboxStatus string
 const (
 	OutboxNew  OutboxStatus = "NEW"
 	OutboxSent OutboxStatus = "SENT"
+	OutboxDead OutboxStatus = "DEAD"
 )
 
 type OutboxEvent struct {
@@ -21,6 +22,7 @@ type OutboxEvent struct {
 	OccurredAt    time.Time    `gorm:"not null"`
 	Status        OutboxStatus `gorm:"size:10;not null;index"` //NEW SENT
 	Attempts      int          `gorm:"not null;default:0"`     //ПОПЫТКИ
+	NextAttemptAt *time.Time   `gorm:"index"`
 	LastError     string       `gorm:"type:text"`
 	SentAt        *time.Time
 	CreatedAt     time.Time

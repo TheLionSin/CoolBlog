@@ -66,6 +66,10 @@ func main() {
 
 				value, err := json.Marshal(env)
 				if err != nil {
+					log.Printf(
+						"OUTBOX FAIL id=%d event_id=%s stage=marshal err=%v",
+						it.ID, it.EventID, err,
+					)
 					_ = outboxRepo.MarkFailed(ctx, it.ID, "marshal envelope: "+err.Error())
 					continue
 				}
@@ -76,13 +80,22 @@ func main() {
 					Time:  time.Now(),
 				})
 				if err != nil {
+					log.Printf(
+						"OUTBOX FAIL id=%d event_id=%s stage=kafka_publish err=%v",
+						it.ID, it.EventID, err,
+					)
 					_ = outboxRepo.MarkFailed(ctx, it.ID, "kafka publish: "+err.Error())
 					continue
 				}
 
 				if err := outboxRepo.MarkSent(ctx, it.ID); err != nil {
 					log.Println("mark sent error:", err)
+					continue
 				}
+				log.Printf(
+					"OUTBOX SENT id=%d event_id=%s topic=%s",
+					it.ID, it.EventID, it.Topic,
+				)
 			}
 		}
 

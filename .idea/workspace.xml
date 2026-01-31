@@ -4,17 +4,13 @@
     <option name="autoReloadType" value="ALL" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="7c1c074b-660a-4921-be09-b3530d4b4962" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/internal/repositories/outbox_repository.go" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/models/outbox_event.go" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/publisher/main.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/go_blog_kafka.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/go_blog_kafka.iml" afterDir="false" />
+    <list default="true" id="aaa25540-7e3c-4461-a4ac-ce728ffcdf4f" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/go_blog_kafka.iml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/modules.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/consumer/main.go" beforeDir="false" afterPath="$PROJECT_DIR$/consumer/main.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/internal/repositories/post_repository.go" beforeDir="false" afterPath="$PROJECT_DIR$/internal/repositories/post_repository.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/main.go" beforeDir="false" afterPath="$PROJECT_DIR$/main.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/routes/routes.go" beforeDir="false" afterPath="$PROJECT_DIR$/routes/routes.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/services/post_service.go" beforeDir="false" afterPath="$PROJECT_DIR$/services/post_service.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/repositories/outbox_repository.go" beforeDir="false" afterPath="$PROJECT_DIR$/internal/repositories/outbox_repository.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/models/outbox_event.go" beforeDir="false" afterPath="$PROJECT_DIR$/models/outbox_event.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/publisher/main.go" beforeDir="false" afterPath="$PROJECT_DIR$/publisher/main.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/tmp/build-errors.log" beforeDir="false" afterPath="$PROJECT_DIR$/tmp/build-errors.log" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/tmp/main.exe" beforeDir="false" afterPath="$PROJECT_DIR$/tmp/main.exe" afterDir="false" />
     </list>
@@ -23,48 +19,34 @@
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
     <option name="LAST_RESOLUTION" value="IGNORE" />
   </component>
-  <component name="FileTemplateManagerImpl">
-    <option name="RECENT_TEMPLATES">
-      <list>
-        <option value="Go File" />
-      </list>
-    </option>
-  </component>
   <component name="GOROOT" url="file://$PROJECT_DIR$/../../../../Program Files/Go" />
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
-  <component name="GitHubPullRequestSearchHistory"><![CDATA[{
-  "lastFilter": {
-    "state": "OPEN",
-    "assignee": "TheLionSin"
+  <component name="GitHubPullRequestSearchHistory">{
+  &quot;lastFilter&quot;: {
+    &quot;state&quot;: &quot;OPEN&quot;,
+    &quot;assignee&quot;: &quot;TheLionSin&quot;
   }
-}]]></component>
-  <component name="GithubPullRequestsUISettings"><![CDATA[{
-  "selectedUrlAndAccountId": {
-    "url": "https://github.com/TheLionSin/CoolBlog.git",
-    "accountId": "c96e6dc2-5ce0-4c13-8756-f49ea5ada145"
+}</component>
+  <component name="GithubPullRequestsUISettings">{
+  &quot;selectedUrlAndAccountId&quot;: {
+    &quot;url&quot;: &quot;https://github.com/TheLionSin/CoolBlog.git&quot;,
+    &quot;accountId&quot;: &quot;c96e6dc2-5ce0-4c13-8756-f49ea5ada145&quot;
   }
-}]]></component>
-  <component name="KubernetesApiPersistence"><![CDATA[{}]]></component>
-  <component name="KubernetesApiProvider"><![CDATA[{
-  "isMigrated": true
-}]]></component>
+}</component>
   <component name="ProjectColorInfo">{
   &quot;customColor&quot;: &quot;&quot;,
   &quot;associatedIndex&quot;: 7
 }</component>
-  <component name="ProjectId" id="38pEziNfdy35eoycjWXEKuEdi1U" />
-  <component name="ProjectLevelVcsManager">
-    <ConfirmationsSetting value="2" id="Add" />
-  </component>
+  <component name="ProjectId" id="38r2JeIf29l2GaD2KTt462KU76v" />
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
   <component name="PropertiesComponent"><![CDATA[{
   "keyToString": {
-    "DefaultGoTemplateProperty": "Go File",
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
     "RunOnceActivity.GoLinterPluginOnboarding": "true",
     "RunOnceActivity.GoLinterPluginStorageMigration": "true",
     "RunOnceActivity.ShowReadmeOnStart": "true",
@@ -78,8 +60,7 @@
     "go.sdk.automatically.set": "true",
     "last_opened_file_path": "C:/Users/PC",
     "node.js.detected.package.eslint": "true",
-    "node.js.selected.package.eslint": "(autodetect)",
-    "nodejs_package_manager_path": "npm"
+    "node.js.selected.package.eslint": "(autodetect)"
   }
 }]]></component>
   <component name="SharedIndexes">
@@ -90,14 +71,13 @@
       </set>
     </attachedChunks>
   </component>
-  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
   <component name="TaskManager">
     <task active="true" id="Default" summary="Default task">
-      <changelist id="7c1c074b-660a-4921-be09-b3530d4b4962" name="Changes" comment="" />
-      <created>1769524820413</created>
+      <changelist id="aaa25540-7e3c-4461-a4ac-ce728ffcdf4f" name="Changes" comment="" />
+      <created>1769543300659</created>
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
-      <updated>1769524820413</updated>
+      <updated>1769543300659</updated>
     </task>
     <servers />
   </component>
