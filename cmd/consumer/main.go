@@ -42,8 +42,14 @@ func main() {
 	log.Println("audit consumer started")
 
 	for {
+		select {
+		case <-ctx.Done():
+			log.Println("consumer shutdown")
+			return
+		default:
+		}
 		log.Println("waiting message...")
-		msg, err := reader.FetchMessage(ctx)
+		msg, err := reader.FetchMessage(context.Background())
 		if err != nil {
 			log.Printf("fetch error: %v", err)
 			continue
@@ -73,7 +79,7 @@ func main() {
 
 		log.Printf("processing event %s offset=%d", env.EventID, msg.Offset)
 
-		if err := reader.CommitMessages(ctx, msg); err != nil {
+		if err := reader.CommitMessages(context.Background(), msg); err != nil {
 			log.Println("failed to commit message:", err)
 		}
 	}

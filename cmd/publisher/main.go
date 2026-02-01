@@ -60,11 +60,13 @@ func main() {
 	for {
 		select {
 		case <-ctx.Done():
-			log.Println("outbox publisher stopped")
+			log.Println("shutdown requested, stopping fetch loop")
 			return
 
 		case <-ticker.C:
-			items, err := outboxRepo.FetchBatchForPublish(ctx, 50)
+			workCtx := context.Background() // НЕ ctx
+
+			items, err := outboxRepo.FetchBatchForPublish(workCtx, 50)
 			if err != nil {
 				log.Println("fetch outbox error:", err)
 				continue
