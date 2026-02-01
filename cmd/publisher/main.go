@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"go_blog/config"
 	"go_blog/internal/events"
+	"go_blog/internal/metrics"
 	"go_blog/internal/repositories"
+	"go_blog/models"
 	"log"
 	"os"
 	"os/signal"
@@ -75,6 +77,8 @@ func main() {
 				continue
 			}
 
+			metrics.OutboxFetched.Add(1)
+
 			for _, it := range items {
 				// 1) Собираем envelope
 				env := events.Envelope{
@@ -92,6 +96,9 @@ func main() {
 				value, err := json.Marshal(env)
 				if err != nil {
 					log.Printf("OUTBOX FAIL id=%d event_id=%s stage=marshal err=%v", it.ID, it.EventID, err)
+
+					metrics.OutboxRetry.Add(1)
+
 					_, _ = outboxRepo.MarkFailed(ctx, it.ID, "marshal envelope: "+err.Error())
 					continue
 				}
@@ -125,7 +132,13 @@ func main() {
 				err = w.WriteMessages(ctx, msg)
 				if err != nil {
 					log.Printf("OUTBOX FAIL id=%d event_id=%s stage=kafka_publish topic=%s err=%v", it.ID, it.EventID, it.Topic, err)
-					_, _ = outboxRepo.MarkFailed(ctx, it.ID, "kafka publish: "+err.Error())
+
+					metrics.OutboxRetry.Add(1)
+
+					status, _ := outboxRepo.MarkFailed(ctx, it.ID, "kafka publish: "+err.Error())
+					if status == models.OutboxDead {
+						metrics.OutboxDead.Add(1)
+					}
 					continue
 				}
 
@@ -135,7 +148,14 @@ func main() {
 					continue
 				}
 
-				log.Printf("OUTBOX SENT id=%d event_id=%s topic=%s", it.ID, it.EventID, it.Topic)
+				metrics.OutboxSent.Add(1)
+
+				lag := time.Since(it.OccurredAt)
+
+				log.Printf(
+					"OUTBOX SENT id=%d event_id=%s topic=%s lag=%s attempts=%d",
+					it.ID, it.EventID, it.Topic, lag, it.Attempts,
+				)
 			}
 		}
 	}

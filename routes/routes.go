@@ -13,6 +13,12 @@ import (
 func SetupRoutes() *gin.Engine {
 	r := gin.Default()
 
+	r.GET("/health", func(c *gin.Context) {
+		c.JSON(200, gin.H{
+			"status": "ok",
+		})
+	})
+
 	postRepo := repositories.NewPostRepository(config.DB, config.RDB)
 	commentRepo := repositories.NewCommentRepository(config.DB)
 	likeRepo := repositories.NewLikeRepository(config.DB)
