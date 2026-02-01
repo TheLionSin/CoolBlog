@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	maxAttempts    = 3
+	maxAttempts    = 10
 	maxBackoffSecs = 120
 
 	maxAttemptsDLQ = 1000000 // фактически бесконечно

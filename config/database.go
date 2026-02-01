@@ -13,10 +13,10 @@ import (
 var DB *gorm.DB
 
 func ConnectDB() {
-	err := godotenv.Load(".env")
-	if err != nil {
-		log.Fatal("Error loading .env file")
-	}
+
+	// В Docker переменные приходят из env_file / окружения.
+	// Поэтому .env грузим "если есть", но не падаем если нет.
+	_ = godotenv.Load(".env")
 
 	host := os.Getenv("DB_HOST")
 	user := os.Getenv("DB_USER")

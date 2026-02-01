@@ -26,8 +26,13 @@ func main() {
 
 	outboxRepo := repositories.NewOutboxRepository(config.DB)
 
+	brokers := os.Getenv("KAFKA_BROKERS")
+	if brokers == "" {
+		brokers = "localhost:9092"
+	}
+
 	eventsWriter := &kafka.Writer{
-		Addr:         kafka.TCP("localhost:9092"),
+		Addr:         kafka.TCP(brokers),
 		Topic:        TopicEvents,
 		Balancer:     &kafka.Hash{},
 		RequiredAcks: kafka.RequireAll,
@@ -36,7 +41,7 @@ func main() {
 	defer eventsWriter.Close()
 
 	dlqWriter := &kafka.Writer{
-		Addr:         kafka.TCP("localhost:9092"),
+		Addr:         kafka.TCP(brokers),
 		Topic:        TopicDLQ,
 		Balancer:     &kafka.Hash{},
 		RequiredAcks: kafka.RequireAll,

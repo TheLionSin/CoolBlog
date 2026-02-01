@@ -5,14 +5,17 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="aaa25540-7e3c-4461-a4ac-ce728ffcdf4f" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/replay/main.go" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/scripts/kafka-create-topics.ps1" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.env.docker" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/Dockerfile" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docker-compose.app.yml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/config/database.go" beforeDir="false" afterPath="$PROJECT_DIR$/config/database.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/config/redis.go" beforeDir="false" afterPath="$PROJECT_DIR$/config/redis.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/consumer/main.go" beforeDir="false" afterPath="$PROJECT_DIR$/cmd/consumer/main.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/docker-compose.kafka.yml" beforeDir="false" afterPath="$PROJECT_DIR$/docker-compose.kafka.yml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/internal/repositories/outbox_repository.go" beforeDir="false" afterPath="$PROJECT_DIR$/internal/repositories/outbox_repository.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/publisher/main.go" beforeDir="false" afterPath="$PROJECT_DIR$/publisher/main.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/scripts/kafka-create-topics.sh" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/tmp/build-errors.log" beforeDir="false" afterPath="$PROJECT_DIR$/tmp/build-errors.log" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tmp/main.exe" beforeDir="false" afterPath="$PROJECT_DIR$/tmp/main.exe" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/publisher/main.go" beforeDir="false" afterPath="$PROJECT_DIR$/cmd/publisher/main.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/replay/main.go" beforeDir="false" afterPath="$PROJECT_DIR$/cmd/replay/main.go" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -47,6 +50,9 @@
   &quot;associatedIndex&quot;: 7
 }</component>
   <component name="ProjectId" id="38r2JeIf29l2GaD2KTt462KU76v" />
+  <component name="ProjectLevelVcsManager">
+    <ConfirmationsSetting value="2" id="Add" />
+  </component>
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
@@ -69,9 +75,15 @@
     "go.sdk.automatically.set": "true",
     "last_opened_file_path": "C:/Users/PC",
     "node.js.detected.package.eslint": "true",
-    "node.js.selected.package.eslint": "(autodetect)"
+    "node.js.selected.package.eslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm"
   }
 }]]></component>
+  <component name="RecentsManager">
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="C:\Users\PC\Desktop\golang_blog_kafka\cmd" />
+    </key>
+  </component>
   <component name="SharedIndexes">
     <attachedChunks>
       <set>

@@ -22,8 +22,14 @@ func main() {
 
 	auditRepo := repositories.NewAuditLogRepository(db)
 
+	brokers := os.Getenv("KAFKA_BROKERS")
+	if brokers == "" {
+		brokers = "localhost:9092"
+	}
+	log.Println("KAFKA_BROKERS =", brokers)
+
 	reader := kafka.NewReader(kafka.ReaderConfig{
-		Brokers: []string{"localhost:9092"},
+		Brokers: []string{brokers},
 		Topic:   "blog.events",
 		GroupID: "audit-log-consumer",
 	})
