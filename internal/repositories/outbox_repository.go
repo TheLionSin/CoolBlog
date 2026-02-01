@@ -5,13 +5,16 @@ import (
 	"go_blog/models"
 	"time"
 
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
 
 const (
-	maxAttempts    = 10
+	maxAttempts    = 3
 	maxBackoffSecs = 120
+
+	maxAttemptsDLQ = 1000000 // фактически бесконечно
 )
 
 type OutboxRepository struct {
@@ -25,6 +28,28 @@ func NewOutboxRepository(db *gorm.DB) *OutboxRepository {
 // Важно: вызывается ИЗ транзакции (tx)
 func (r *OutboxRepository) CreateTx(ctx context.Context, tx *gorm.DB, e *models.OutboxEvent) error {
 	return tx.WithContext(ctx).Create(e).Error
+}
+
+func (r *OutboxRepository) CreateDLQFromDeadTx(ctx context.Context, tx *gorm.DB, dead models.OutboxEvent, lastErr string) error {
+	now := time.Now().UTC()
+
+	// В DLQ мы шлём тот же payload/envelope, но можно дополнить payload/headers уже на стороне writer
+	dlq := models.OutboxEvent{
+		EventID:       uuid.NewString(), // новый event_id для dlq-записи (важно!)
+		Topic:         "blog.events.dlq",
+		EventType:     dead.EventType,
+		AggregateType: dead.AggregateType,
+		AggregateID:   dead.AggregateID,
+		ActorUserID:   dead.ActorUserID,
+		Payload:       dead.Payload, // тот же envelope/value
+		OccurredAt:    now,
+		Status:        models.OutboxNew,
+		Attempts:      0,
+		NextAttemptAt: nil,
+		LastError:     "dlq from dead: " + lastErr,
+	}
+
+	return tx.WithContext(ctx).Create(&dlq).Error
 }
 
 // Берём пачку NEW событий и "лочим" их, чтобы два publisher'а не взяли одно и то же
@@ -47,6 +72,28 @@ func (r *OutboxRepository) FetchBatchForPublish(ctx context.Context, limit int) 
 	return items, err
 }
 
+func (r *OutboxRepository) FetchDead(ctx context.Context, limit int) ([]models.OutboxEvent, error) {
+	var items []models.OutboxEvent
+	err := r.db.WithContext(ctx).
+		Where("status = ?", models.OutboxDead).
+		Order("id asc").
+		Limit(limit).
+		Find(&items).Error
+	return items, err
+}
+
+func (r *OutboxRepository) ResetDeadToNew(ctx context.Context, id uint) error {
+	return r.db.WithContext(ctx).
+		Model(&models.OutboxEvent{}).
+		Where("id = ? AND status = ?", id, models.OutboxDead).
+		Updates(map[string]any{
+			"status":          models.OutboxNew,
+			"attempts":        0,
+			"next_attempt_at": nil,
+			"last_error":      "",
+		}).Error
+}
+
 func (r *OutboxRepository) MarkSent(ctx context.Context, id uint) error {
 	now := time.Now().UTC()
 	return r.db.WithContext(ctx).
@@ -60,40 +107,64 @@ func (r *OutboxRepository) MarkSent(ctx context.Context, id uint) error {
 		}).Error
 }
 
-func (r *OutboxRepository) MarkFailed(ctx context.Context, id uint, errText string) error {
-	// 1) Сначала считаем новое количество попыток (берём текущее Attempts из БД)
-	var e models.OutboxEvent
-	if err := r.db.WithContext(ctx).
-		Select("id", "attempts").
-		Where("id = ?", id).
-		First(&e).Error; err != nil {
-		return err
-	}
+func (r *OutboxRepository) MarkFailed(ctx context.Context, id uint, errText string) (models.OutboxStatus, error) {
+	returnStatus := models.OutboxNew
 
-	newAttempts := e.Attempts + 1
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var e models.OutboxEvent
+		if err := tx.Select(
+			"id", "topic", "attempts",
+			"event_type", "aggregate_type", "aggregate_id",
+			"actor_user_id", "payload",
+		).Where("id = ?", id).First(&e).Error; err != nil {
+			return err
+		}
 
-	if newAttempts >= maxAttempts {
-		return r.db.WithContext(ctx).
-			Model(&models.OutboxEvent{}).
+		newAttempts := e.Attempts + 1
+
+		// DEAD
+
+		limit := maxAttempts
+		if e.Topic == "blog.events.dlq" {
+			limit = maxAttemptsDLQ
+		}
+
+		if newAttempts >= limit {
+			if err := tx.Model(&models.OutboxEvent{}).
+				Where("id = ?", id).
+				Updates(map[string]any{
+					"status":          models.OutboxDead,
+					"attempts":        newAttempts,
+					"last_error":      errText,
+					"next_attempt_at": nil,
+				}).Error; err != nil {
+				return err
+			}
+
+			// Создаём DLQ outbox запись ТОЛЬКО для основного топика
+			// (чтобы не было dlq-of-dlq)
+			if e.Topic != "blog.events.dlq" {
+				if err := r.CreateDLQFromDeadTx(ctx, tx, e, errText); err != nil {
+					return err
+				}
+			}
+
+			returnStatus = models.OutboxDead
+			return nil
+		}
+
+		// обычный backoff
+		next := time.Now().UTC().Add(computeBackoff(newAttempts))
+		return tx.Model(&models.OutboxEvent{}).
 			Where("id = ?", id).
 			Updates(map[string]any{
-				"status":          models.OutboxDead,
 				"attempts":        newAttempts,
 				"last_error":      errText,
-				"next_attempt_at": nil,
+				"next_attempt_at": &next,
 			}).Error
-	}
+	})
 
-	next := time.Now().UTC().Add(computeBackoff(newAttempts))
-
-	return r.db.WithContext(ctx).
-		Model(&models.OutboxEvent{}).
-		Where("id = ?", id).
-		Updates(map[string]any{
-			"attempts":        newAttempts,
-			"last_error":      errText,
-			"next_attempt_at": &next,
-		}).Error
+	return returnStatus, err
 }
 
 func computeBackoff(attempts int) time.Duration {

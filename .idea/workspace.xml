@@ -5,12 +5,12 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="aaa25540-7e3c-4461-a4ac-ce728ffcdf4f" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/go_blog_kafka.iml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/modules.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/replay/main.go" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/scripts/kafka-create-topics.ps1" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/internal/repositories/outbox_repository.go" beforeDir="false" afterPath="$PROJECT_DIR$/internal/repositories/outbox_repository.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/models/outbox_event.go" beforeDir="false" afterPath="$PROJECT_DIR$/models/outbox_event.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/publisher/main.go" beforeDir="false" afterPath="$PROJECT_DIR$/publisher/main.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/kafka-create-topics.sh" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/tmp/build-errors.log" beforeDir="false" afterPath="$PROJECT_DIR$/tmp/build-errors.log" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/tmp/main.exe" beforeDir="false" afterPath="$PROJECT_DIR$/tmp/main.exe" afterDir="false" />
     </list>
@@ -18,6 +18,13 @@
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
     <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="Go File" />
+      </list>
+    </option>
   </component>
   <component name="GOROOT" url="file://$PROJECT_DIR$/../../../../Program Files/Go" />
   <component name="Git.Settings">
@@ -46,6 +53,7 @@
   </component>
   <component name="PropertiesComponent"><![CDATA[{
   "keyToString": {
+    "DefaultGoTemplateProperty": "Go File",
     "ModuleVcsDetector.initialDetectionPerformed": "true",
     "RunOnceActivity.GoLinterPluginOnboarding": "true",
     "RunOnceActivity.GoLinterPluginStorageMigration": "true",
@@ -55,6 +63,7 @@
     "RunOnceActivity.go.formatter.settings.were.checked": "true",
     "RunOnceActivity.go.migrated.go.modules.settings": "true",
     "RunOnceActivity.go.modules.go.list.on.any.changes.was.set": "true",
+    "SHELLCHECK.PATH": "C:\\Users\\PC\\AppData\\Roaming\\JetBrains\\GoLand2025.2\\plugins\\Shell Script\\shellcheck.exe",
     "git-widget-placeholder": "main",
     "go.import.settings.migrated": "true",
     "go.sdk.automatically.set": "true",
@@ -83,6 +92,9 @@
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
+  </component>
+  <component name="UnknownFeatures">
+    <option featureType="com.intellij.fileTypeFactory" implementationName="*.ps1" />
   </component>
   <component name="VgoProject">
     <settings-migrated>true</settings-migrated>
