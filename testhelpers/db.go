@@ -1,7 +1,7 @@
 package testhelpers
 
 import (
-	"go_blog/models"
+	models2 "go_blog/internal/models"
 	"os"
 	"testing"
 
@@ -33,19 +33,19 @@ func SetupTestDB(t *testing.T) *gorm.DB {
 	}
 
 	require.NoError(t, db.Migrator().DropTable(
-		&models.PostLike{},
-		&models.Comment{},
-		&models.Post{},
-		&models.User{},
-		&models.RefreshToken{},
+		&models2.PostLike{},
+		&models2.Comment{},
+		&models2.Post{},
+		&models2.User{},
+		&models2.RefreshToken{},
 	))
 
 	require.NoError(t, db.AutoMigrate(
-		&models.User{},
-		&models.Post{},
-		&models.Comment{},
-		&models.PostLike{},
-		&models.RefreshToken{},
+		&models2.User{},
+		&models2.Post{},
+		&models2.Comment{},
+		&models2.PostLike{},
+		&models2.RefreshToken{},
 	))
 
 	return db

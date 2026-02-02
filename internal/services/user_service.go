@@ -2,7 +2,7 @@ package services
 
 import (
 	"context"
-	"go_blog/dto"
+	"go_blog/internal/dto"
 	"go_blog/internal/repositories"
 )
 

@@ -1,7 +1,7 @@
 package middleware
 
 import (
-	"go_blog/utils"
+	"go_blog/internal/utils"
 	"net/http"
 	"strings"
 

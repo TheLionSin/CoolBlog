@@ -2,7 +2,7 @@ package repositories
 
 import (
 	"context"
-	"go_blog/models"
+	"go_blog/internal/models"
 	"time"
 
 	"github.com/google/uuid"

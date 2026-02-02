@@ -1,7 +1,7 @@
 package repositories
 
 import (
-	"go_blog/models"
+	"go_blog/internal/models"
 	"time"
 
 	"gorm.io/gorm"

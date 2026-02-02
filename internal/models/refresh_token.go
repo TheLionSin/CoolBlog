@@ -2,14 +2,13 @@ package models
 
 import (
 	"time"
-
-	"gorm.io/gorm"
 )
 
 type RefreshToken struct {
-	gorm.Model
+	ID        uint      `gorm:"primary_key"`
 	UserID    uint      `gorm:"index"`
 	TokenHash string    `gorm:"uniqueIndex;size:64;not null"`
+	CreatedAt time.Time `gorm:"index"`
 	ExpiresAt time.Time `gorm:"index"`
 	UserAgent string    `gorm:"size:255"`
 	IP        string    `gorm:"size:45"`

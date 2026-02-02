@@ -11,7 +11,3 @@ var (
 	ConsumerProcessed atomic.Uint64
 	ConsumerErrors    atomic.Uint64
 )
-
-func Inc(metric *atomic.Uint64) {
-	metric.Add(1)
-}

@@ -6,8 +6,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"go_blog/models"
-	"go_blog/utils"
+	"go_blog/internal/models"
+	utils2 "go_blog/internal/utils"
 	"strings"
 	"time"
 
@@ -41,7 +41,7 @@ func generateUniqueSlugWithDB(
 	title string,
 ) (string, error) {
 
-	base := utils.Slugify(title)
+	base := utils2.Slugify(title)
 	slug := base
 
 	for i := 1; ; i++ {
@@ -74,7 +74,7 @@ func (r *PostRepository) listVersion(ctx context.Context) int64 {
 		return 1
 	}
 
-	key := utils.PostsListVersionKey()
+	key := utils2.PostsListVersionKey()
 
 	v, err := r.rdb.Get(ctx, key).Int64()
 	if err == nil {
@@ -89,7 +89,7 @@ func (r *PostRepository) bumpListVersion(ctx context.Context) {
 	if r.rdb == nil {
 		return
 	}
-	_ = r.rdb.Incr(ctx, utils.PostsListVersionKey()).Err()
+	_ = r.rdb.Incr(ctx, utils2.PostsListVersionKey()).Err()
 }
 
 func (r *PostRepository) GetBySlug(ctx context.Context, slug string) (*models.Post, error) {
@@ -106,7 +106,7 @@ func (r *PostRepository) GetBySlug(ctx context.Context, slug string) (*models.Po
 
 	var post models.Post
 	if err := r.db.WithContext(ctx).
-		Select("id", "created_at", "updated_at", "title", "text", "slug", "user_id", "is_active").
+		Select("*").
 		Where("slug = ? AND is_active = ?", slug, true).
 		First(&post).Error; err != nil {
 		return nil, err
@@ -153,9 +153,9 @@ func (r *PostRepository) List(ctx context.Context, page, limit int, q string) ([
 	}
 
 	var posts []models.Post
-	offset := utils.Offset(page, limit)
+	offset := utils2.Offset(page, limit)
 	if err := db.
-		Select("id", "created_at", "updated_at", "title", "text", "slug", "user_id", "is_active").
+		Select("*").
 		Order("created_at desc").
 		Limit(limit).
 		Offset(offset).
@@ -199,27 +199,37 @@ func (r *PostRepository) Create(ctx context.Context, uid uint, title, text strin
 }
 
 func (r *PostRepository) CreateTx(ctx context.Context, tx *gorm.DB, uid uint, title, text string) (*models.Post, error) {
-	slug, err := generateUniqueSlugWithDB(ctx, tx, title)
-	if err != nil {
+	baseSlug := utils2.Slugify(title)
+	slug := baseSlug
+
+	// Пытаемся вставить в цикле
+	for i := 0; i < 10; i++ { // 10 попыток максимум, чтобы не уйти в вечный цикл
+		post := &models.Post{
+			Title:  title,
+			Text:   text,
+			Slug:   slug,
+			UserID: uid,
+		}
+
+		err := tx.WithContext(ctx).Create(post).Error
+		if err == nil {
+			r.bumpListVersion(ctx)
+			return post, nil
+		}
+
+		// Проверяем, ошибка ли это дубликата?
+		// В GORM и Postgres ошибка дубликата обычно содержит строку "23505" или мы можем проверить стандартную ошибку
+		// Более надежный способ для Postgres:
+		if strings.Contains(err.Error(), "duplicate key") || strings.Contains(err.Error(), "23505") {
+			// Слаг занят, генерируем новый (base-1, base-2...)
+			slug = fmt.Sprintf("%s-%d", baseSlug, i+1)
+			continue
+		}
+
 		return nil, err
 	}
 
-	post := &models.Post{
-		Title:  title,
-		Text:   text,
-		Slug:   slug,
-		UserID: uid,
-	}
-
-	if err := tx.WithContext(ctx).Create(post).Error; err != nil {
-		return nil, err
-	}
-
-	// bumpListVersion: тут нюанс — он трогает Redis.
-	// В проде bump делается тоже через outbox/событие, но сейчас оставим как есть или вынесем позже.
-	r.bumpListVersion(ctx)
-
-	return post, nil
+	return nil, fmt.Errorf("failed to generate unique slug after retries")
 }
 
 func (r *PostRepository) UpdateOwnedBy(ctx context.Context, slug string, uid uint, updates map[string]any) (*models.Post, error) {

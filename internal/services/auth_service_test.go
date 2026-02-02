@@ -2,10 +2,10 @@ package services
 
 import (
 	"context"
-	"go_blog/dto"
-	"go_blog/models"
+	"go_blog/internal/dto"
+	"go_blog/internal/models"
+	"go_blog/internal/utils"
 	"go_blog/stores"
-	"go_blog/utils"
 	"testing"
 	"time"
 

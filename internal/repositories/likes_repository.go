@@ -3,7 +3,7 @@ package repositories
 import (
 	"context"
 	"errors"
-	"go_blog/models"
+	models2 "go_blog/internal/models"
 
 	"gorm.io/gorm"
 )
@@ -19,7 +19,7 @@ func NewLikeRepository(db *gorm.DB) *LikeRepository {
 }
 
 func (r *LikeRepository) postIDBySlug(ctx context.Context, slug string) (uint, error) {
-	var post models.Post
+	var post models2.Post
 	if err := r.db.WithContext(ctx).Where("slug = ? AND is_active = ?", slug, true).First(&post).Error; err != nil {
 		return 0, err
 	}
@@ -32,7 +32,7 @@ func (r *LikeRepository) Like(ctx context.Context, postSlug string, userID uint)
 		return err
 	}
 
-	like := models.PostLike{PostID: postID, UserID: userID}
+	like := models2.PostLike{PostID: postID, UserID: userID}
 	if err := r.db.WithContext(ctx).Create(&like).Error; err != nil {
 		if errors.Is(err, gorm.ErrDuplicatedKey) {
 			return ErrAlreadyLiked
@@ -48,7 +48,7 @@ func (r *LikeRepository) Unlike(ctx context.Context, postSlug string, userID uin
 		return err
 	}
 
-	return r.db.WithContext(ctx).Unscoped().Where("post_id = ? AND user_id = ?", postID, userID).Delete(&models.PostLike{}).Error
+	return r.db.WithContext(ctx).Unscoped().Where("post_id = ? AND user_id = ?", postID, userID).Delete(&models2.PostLike{}).Error
 }
 
 func (r *LikeRepository) CountByPostSlug(ctx context.Context, postSlug string) (int64, error) {
@@ -58,7 +58,7 @@ func (r *LikeRepository) CountByPostSlug(ctx context.Context, postSlug string) (
 	}
 
 	var count int64
-	if err := r.db.WithContext(ctx).Model(&models.PostLike{}).Where("post_id = ?", postID).Count(&count).Error; err != nil {
+	if err := r.db.WithContext(ctx).Model(&models2.PostLike{}).Where("post_id = ?", postID).Count(&count).Error; err != nil {
 		return 0, err
 	}
 

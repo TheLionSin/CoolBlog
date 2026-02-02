@@ -2,7 +2,7 @@ package repositories
 
 import (
 	"context"
-	"go_blog/models"
+	models2 "go_blog/internal/models"
 	"go_blog/testhelpers"
 	"testing"
 
@@ -16,7 +16,7 @@ func TestPostRepository_GetBySlug_CacheHit(t *testing.T) {
 
 	repo := NewPostRepository(tx, rdb)
 
-	user := &models.User{
+	user := &models2.User{
 		Nickname: "u",
 		Email:    "cache@test.com",
 		Password: "123",
@@ -24,7 +24,7 @@ func TestPostRepository_GetBySlug_CacheHit(t *testing.T) {
 	}
 	require.NoError(t, tx.Create(user).Error)
 
-	post := &models.Post{
+	post := &models2.Post{
 		Title:    "Cached",
 		Slug:     "cached",
 		UserID:   user.ID,
@@ -37,7 +37,7 @@ func TestPostRepository_GetBySlug_CacheHit(t *testing.T) {
 	require.Equal(t, "Cached", resp1.Title)
 
 	// удаляем из БД, но кэш должен отдать старое
-	require.NoError(t, tx.Unscoped().Delete(&models.Post{}, post.ID).Error)
+	require.NoError(t, tx.Unscoped().Delete(&models2.Post{}, post.ID).Error)
 
 	resp2, err := repo.GetBySlug(context.Background(), "cached")
 	require.NoError(t, err)
@@ -51,7 +51,7 @@ func TestPostRepository_GetBySlug_CacheInvalidatedOnUpdate(t *testing.T) {
 
 	repo := NewPostRepository(tx, rdb)
 
-	user := &models.User{
+	user := &models2.User{
 		Nickname: "u",
 		Email:    "upd@test.com",
 		Password: "123",
@@ -59,7 +59,7 @@ func TestPostRepository_GetBySlug_CacheInvalidatedOnUpdate(t *testing.T) {
 	}
 	require.NoError(t, tx.Create(user).Error)
 
-	post := &models.Post{
+	post := &models2.Post{
 		Title:    "Old",
 		Slug:     "upd",
 		UserID:   user.ID,
@@ -87,7 +87,7 @@ func TestPostRepository_List_CacheVersioned(t *testing.T) {
 
 	repo := NewPostRepository(tx, rdb)
 
-	user := &models.User{
+	user := &models2.User{
 		Nickname: "u",
 		Email:    "listcache@test.com",
 		Password: "123",
@@ -95,7 +95,7 @@ func TestPostRepository_List_CacheVersioned(t *testing.T) {
 	}
 	require.NoError(t, tx.Create(user).Error)
 
-	require.NoError(t, tx.Create(&models.Post{
+	require.NoError(t, tx.Create(&models2.Post{
 		Title:    "One",
 		Slug:     "one",
 		UserID:   user.ID,

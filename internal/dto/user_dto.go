@@ -1,6 +1,8 @@
 package dto
 
-import "go_blog/models"
+import (
+	"go_blog/internal/models"
+)
 
 type UserResponse struct {
 	ID       uint          `json:"id"`

@@ -1,9 +1,9 @@
 package controllers_test
 
 import (
-	"go_blog/controllers"
+	"go_blog/internal/controllers"
 	"go_blog/internal/repositories"
-	"go_blog/services"
+	"go_blog/internal/services"
 	"go_blog/stores"
 	"go_blog/testhelpers"
 	"testing"

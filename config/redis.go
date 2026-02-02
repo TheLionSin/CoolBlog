@@ -10,7 +10,7 @@ import (
 
 var RDB *redis.Client
 
-func InitRedis() {
+func InitRedis() *redis.Client {
 
 	addr := os.Getenv("REDIS_ADDR")
 	if addr == "" {
@@ -28,4 +28,6 @@ func InitRedis() {
 	}
 
 	log.Println("Redis connected")
+
+	return RDB
 }

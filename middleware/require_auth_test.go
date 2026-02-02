@@ -1,9 +1,9 @@
 package middleware_test
 
 import (
+	"go_blog/internal/utils"
 	"go_blog/middleware"
 	"go_blog/testhelpers"
-	"go_blog/utils"
 	"net/http"
 	"testing"
 	"time"

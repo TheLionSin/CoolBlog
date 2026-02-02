@@ -2,8 +2,8 @@ package controllers_test
 
 import (
 	"encoding/json"
-	"go_blog/controllers/controllers_test"
-	"go_blog/dto"
+	"go_blog/internal/controllers/controllers_test"
+	"go_blog/internal/dto"
 	"go_blog/testhelpers"
 	"net/http"
 	"testing"

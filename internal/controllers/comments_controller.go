@@ -3,10 +3,10 @@ package controllers
 import (
 	"errors"
 	"fmt"
-	"go_blog/dto"
+	"go_blog/internal/dto"
+	"go_blog/internal/models"
 	"go_blog/internal/repositories"
-	"go_blog/models"
-	"go_blog/utils"
+	utils2 "go_blog/internal/utils"
 	"go_blog/validators"
 	"net/http"
 	"strconv"
@@ -20,7 +20,7 @@ func CreateComment(repo *repositories.CommentRepository) gin.HandlerFunc {
 
 		var req dto.CommentCreateRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
-			utils.RespondError(c, http.StatusBadRequest, "invalid json")
+			utils2.RespondError(c, http.StatusBadRequest, "invalid json")
 			return
 		}
 
@@ -29,11 +29,11 @@ func CreateComment(repo *repositories.CommentRepository) gin.HandlerFunc {
 			for _, e := range err.(validator.ValidationErrors) {
 				errorsMap[e.Field()] = fmt.Sprintf("не проходит '%s'", e.Tag())
 			}
-			utils.RespondValidation(c, errorsMap)
+			utils2.RespondValidation(c, errorsMap)
 			return
 		}
 
-		uid, ok := utils.MustUserID(c)
+		uid, ok := utils2.MustUserID(c)
 		if !ok {
 			return
 		}
@@ -43,14 +43,14 @@ func CreateComment(repo *repositories.CommentRepository) gin.HandlerFunc {
 		comment, err := repo.Create(c.Request.Context(), slug, uid, req.Text)
 		if err != nil {
 			if repositories.IsNotFound(err) {
-				utils.RespondError(c, http.StatusNotFound, "post not found")
+				utils2.RespondError(c, http.StatusNotFound, "post not found")
 				return
 			}
-			utils.RespondError(c, http.StatusInternalServerError, "create comment failed")
+			utils2.RespondError(c, http.StatusInternalServerError, "create comment failed")
 			return
 		}
 
-		utils.RespondCreated(c, commentToResp(*comment))
+		utils2.RespondCreated(c, commentToResp(*comment))
 
 	}
 }
@@ -60,11 +60,11 @@ func DeleteComment(repo *repositories.CommentRepository) gin.HandlerFunc {
 		idStr := c.Param("id")
 		id, err := strconv.ParseUint(idStr, 10, 64)
 		if err != nil {
-			utils.RespondError(c, http.StatusBadRequest, "invalid id")
+			utils2.RespondError(c, http.StatusBadRequest, "invalid id")
 			return
 		}
 
-		uid, ok := utils.MustUserID(c)
+		uid, ok := utils2.MustUserID(c)
 		if !ok {
 			return
 		}
@@ -72,14 +72,14 @@ func DeleteComment(repo *repositories.CommentRepository) gin.HandlerFunc {
 		err = repo.DeleteOwnedBy(c.Request.Context(), uint(id), uid)
 		if err != nil {
 			if errors.Is(err, repositories.ErrForbidden) {
-				utils.RespondError(c, http.StatusForbidden, "you are not author")
+				utils2.RespondError(c, http.StatusForbidden, "you are not author")
 				return
 			}
 			if repositories.IsNotFound(err) {
-				utils.RespondError(c, http.StatusNotFound, "comment not found")
+				utils2.RespondError(c, http.StatusNotFound, "comment not found")
 				return
 			}
-			utils.RespondError(c, http.StatusInternalServerError, "delete comment failed")
+			utils2.RespondError(c, http.StatusInternalServerError, "delete comment failed")
 			return
 		}
 
@@ -94,10 +94,10 @@ func ListCommentsForPost(repo *repositories.CommentRepository) gin.HandlerFunc {
 		comments, err := repo.ListByPostSlug(c.Request.Context(), slug)
 		if err != nil {
 			if repositories.IsNotFound(err) {
-				utils.RespondError(c, http.StatusNotFound, "post not found")
+				utils2.RespondError(c, http.StatusNotFound, "post not found")
 				return
 			}
-			utils.RespondError(c, http.StatusInternalServerError, "failed to list comments")
+			utils2.RespondError(c, http.StatusInternalServerError, "failed to list comments")
 			return
 		}
 
@@ -106,7 +106,7 @@ func ListCommentsForPost(repo *repositories.CommentRepository) gin.HandlerFunc {
 			resp = append(resp, commentToResp(comment))
 		}
 
-		utils.RespondOK(c, gin.H{"ok": true, "comments": resp})
+		utils2.RespondOK(c, gin.H{"ok": true, "comments": resp})
 	}
 }
 

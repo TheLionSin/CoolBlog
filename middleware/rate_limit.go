@@ -2,7 +2,7 @@ package middleware
 
 import (
 	"go_blog/config"
-	"go_blog/utils"
+	"go_blog/internal/utils"
 	"net/http"
 	"time"
 

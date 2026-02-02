@@ -2,25 +2,22 @@ package services
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"go_blog/internal/events"
+	models2 "go_blog/internal/models"
 	"go_blog/internal/repositories"
-	"go_blog/models"
 	"strings"
-	"time"
 
-	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
 type PostRepo interface {
-	Create(ctx context.Context, uid uint, title, text string) (*models.Post, error)
-	UpdateOwnedBy(ctx context.Context, slug string, uid uint, updates map[string]any) (*models.Post, error)
+	Create(ctx context.Context, uid uint, title, text string) (*models2.Post, error)
+	UpdateOwnedBy(ctx context.Context, slug string, uid uint, updates map[string]any) (*models2.Post, error)
 	DeleteOwnedBy(ctx context.Context, slug string, uid uint) error
-	GetBySlug(ctx context.Context, slug string) (*models.Post, error)
-	List(ctx context.Context, page, limit int, q string) ([]models.Post, int64, error)
+	GetBySlug(ctx context.Context, slug string) (*models2.Post, error)
+	List(ctx context.Context, page, limit int, q string) ([]models2.Post, int64, error)
 }
 
 type PostService struct {
@@ -33,13 +30,14 @@ func NewPostService(db *gorm.DB, repo *repositories.PostRepository, outbox *repo
 	return &PostService{db: db, repo: repo, outbox: outbox}
 }
 
-func (s *PostService) Create(ctx context.Context, uid uint, title, text string) (*models.Post, error) {
+func (s *PostService) Create(ctx context.Context, uid uint, title, text string) (*models2.Post, error) {
 	title = strings.TrimSpace(title)
 	text = strings.TrimSpace(text)
 
-	var created *models.Post
+	var created *models2.Post
 
 	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// 1. Создаем пост в БД
 		post, err := s.repo.CreateTx(ctx, tx, uid, title, text)
 		if err != nil {
 			return err
@@ -47,39 +45,14 @@ func (s *PostService) Create(ctx context.Context, uid uint, title, text string) 
 
 		created = post
 
-		payloadBytes, err := json.Marshal(events.PostCreatedPayload{
-			PostID: uintToString(post.ID),
-			Title:  post.Title,
-			Slug:   post.Slug,
-		})
+		// 2. Создаем событие (вся грязная работа спрятана в конструкторе)
+		outboxEvent, err := events.NewPostCreatedEvent(post)
 		if err != nil {
 			return err
 		}
 
-		env := events.Envelope{
-			EventID:       uuid.NewString(),
-			EventType:     "PostCreated",
-			OccurredAt:    time.Now().UTC(),
-			AggregateType: "post",
-			AggregateID:   uintToString(post.ID),
-			ActorUserID:   uintToString(uid),
-			Version:       1,
-			Payload:       payloadBytes,
-		}
-
-		out := &models.OutboxEvent{
-			EventID:       env.EventID,
-			Topic:         "blog.events",
-			EventType:     env.EventType,
-			AggregateType: env.AggregateType,
-			AggregateID:   env.AggregateID,
-			ActorUserID:   env.ActorUserID,
-			Payload:       string(env.Payload),
-			OccurredAt:    env.OccurredAt,
-			Status:        models.OutboxNew,
-		}
-
-		return s.outbox.CreateTx(ctx, tx, out)
+		// 3. Пишем событие в БД (в той же транзакции!)
+		return s.outbox.CreateTx(ctx, tx, outboxEvent)
 	})
 
 	if err != nil {
@@ -90,7 +63,7 @@ func (s *PostService) Create(ctx context.Context, uid uint, title, text string) 
 
 }
 
-func (s *PostService) Update(ctx context.Context, slug string, uid uint, title, text *string) (*models.Post, error) {
+func (s *PostService) Update(ctx context.Context, slug string, uid uint, title, text *string) (*models2.Post, error) {
 	updates := map[string]any{}
 
 	if title != nil {
@@ -126,7 +99,7 @@ func (s *PostService) Delete(ctx context.Context, slug string, uid uint) error {
 	return nil
 }
 
-func (s *PostService) Get(ctx context.Context, slug string) (*models.Post, error) {
+func (s *PostService) Get(ctx context.Context, slug string) (*models2.Post, error) {
 	post, err := s.repo.GetBySlug(ctx, slug)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -137,7 +110,7 @@ func (s *PostService) Get(ctx context.Context, slug string) (*models.Post, error
 	return post, nil
 }
 
-func (s *PostService) List(ctx context.Context, page, limit int, q string) ([]models.Post, int64, error) {
+func (s *PostService) List(ctx context.Context, page, limit int, q string) ([]models2.Post, int64, error) {
 	return s.repo.List(ctx, page, limit, q)
 }
 

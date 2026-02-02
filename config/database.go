@@ -12,7 +12,7 @@ import (
 
 var DB *gorm.DB
 
-func ConnectDB() {
+func ConnectDB() (*gorm.DB, error) {
 
 	// В Docker переменные приходят из env_file / окружения.
 	// Поэтому .env грузим "если есть", но не падаем если нет.
@@ -37,4 +37,6 @@ func ConnectDB() {
 	DB = db
 
 	fmt.Println("Successfully connected to database")
+
+	return db, nil
 }

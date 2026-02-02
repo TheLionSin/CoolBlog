@@ -1,16 +1,14 @@
 package routes
 
 import (
-	"go_blog/config"
+	services "go_blog/internal/services"
 
 	"go_blog/internal/repositories"
-	"go_blog/services"
-	"go_blog/stores"
 
 	"github.com/gin-gonic/gin"
 )
 
-func SetupRoutes() *gin.Engine {
+func SetupRoutes(authService *services.AuthService, userService *services.UserService, postService *services.PostService, commentRepo *repositories.CommentRepository, likeRepo *repositories.LikeRepository) *gin.Engine {
 	r := gin.Default()
 
 	r.GET("/health", func(c *gin.Context) {
@@ -18,20 +16,6 @@ func SetupRoutes() *gin.Engine {
 			"status": "ok",
 		})
 	})
-
-	postRepo := repositories.NewPostRepository(config.DB, config.RDB)
-	commentRepo := repositories.NewCommentRepository(config.DB)
-	likeRepo := repositories.NewLikeRepository(config.DB)
-	userRepo := repositories.NewUserRepository(config.DB)
-	outboxRepo := repositories.NewOutboxRepository(config.DB)
-
-	//stores
-	refreshStore := stores.NewRefreshRedisStore(config.RDB)
-
-	//services
-	authService := services.NewAuthService(userRepo, refreshStore)
-	userService := services.NewUserService(userRepo)
-	postService := services.NewPostService(config.DB, postRepo, outboxRepo)
 
 	RegisterAuthRoutes(r, authService)
 	RegisterUserRoutes(r, userService)

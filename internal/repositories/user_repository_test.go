@@ -2,10 +2,11 @@ package repositories
 
 import (
 	"context"
-	"github.com/stretchr/testify/require"
-	"go_blog/models"
+	"go_blog/internal/models"
 	"go_blog/testhelpers"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestUserRepository_Create_OK(t *testing.T) {

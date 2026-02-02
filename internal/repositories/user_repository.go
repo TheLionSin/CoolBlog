@@ -3,8 +3,9 @@ package repositories
 import (
 	"context"
 	"errors"
+	"go_blog/internal/models"
+
 	"github.com/jackc/pgx/v5/pgconn"
-	"go_blog/models"
 	"gorm.io/gorm"
 )
 

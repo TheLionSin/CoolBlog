@@ -3,7 +3,8 @@ package repositories
 import (
 	"context"
 	"errors"
-	"go_blog/models"
+	"go_blog/internal/models"
+
 	"gorm.io/gorm"
 )
 

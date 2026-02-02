@@ -1,8 +1,8 @@
 package utils
 
 import (
-	"go_blog/dto"
-	"go_blog/models"
+	"go_blog/internal/dto"
+	"go_blog/internal/models"
 )
 
 func PostToResp(p models.Post) dto.PostResponse {

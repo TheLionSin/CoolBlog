@@ -1,9 +1,9 @@
 package controllers
 
 import (
-	"go_blog/dto"
-	"go_blog/services"
-	"go_blog/utils"
+	"go_blog/internal/dto"
+	"go_blog/internal/services"
+	"go_blog/internal/utils"
 	"go_blog/validators"
 	"net/http"
 

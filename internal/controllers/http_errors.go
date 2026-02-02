@@ -3,8 +3,8 @@ package controllers
 import (
 	"errors"
 	"go_blog/internal/repositories"
-	"go_blog/services"
-	"go_blog/utils"
+	"go_blog/internal/services"
+	"go_blog/internal/utils"
 	"net/http"
 
 	"github.com/gin-gonic/gin"

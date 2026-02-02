@@ -3,7 +3,7 @@ package stores
 import (
 	"context"
 	"errors"
-	"go_blog/utils"
+	"go_blog/internal/utils"
 	"time"
 
 	"github.com/redis/go-redis/v9"

@@ -1,9 +1,9 @@
 package routes
 
 import (
-	"go_blog/controllers"
+	"go_blog/internal/controllers"
+	"go_blog/internal/services"
 	"go_blog/middleware"
-	"go_blog/services"
 	"time"
 
 	"github.com/gin-gonic/gin"

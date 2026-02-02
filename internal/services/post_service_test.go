@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"go_blog/internal/events"
-	"go_blog/models"
+	"go_blog/internal/models"
 	"testing"
 
 	"github.com/stretchr/testify/require"

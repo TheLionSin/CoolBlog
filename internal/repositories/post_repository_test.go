@@ -3,7 +3,7 @@ package repositories
 import (
 	"context"
 	"fmt"
-	"go_blog/models"
+	models2 "go_blog/internal/models"
 	"go_blog/testhelpers"
 	"testing"
 
@@ -17,7 +17,7 @@ func TestPostRepository_Create_OK(t *testing.T) {
 
 	repo := NewPostRepository(tx, nil)
 
-	user := &models.User{
+	user := &models2.User{
 		Nickname: "author",
 		Email:    "author@test.com",
 		Password: "123",
@@ -39,7 +39,7 @@ func TestPostRepository_GetBySlug_OK(t *testing.T) {
 
 	repo := NewPostRepository(tx, nil)
 
-	user := &models.User{
+	user := &models2.User{
 		Nickname: "u",
 		Email:    "u@test.com",
 		Password: "123",
@@ -47,7 +47,7 @@ func TestPostRepository_GetBySlug_OK(t *testing.T) {
 	}
 	require.NoError(t, tx.Create(user).Error)
 
-	post := &models.Post{
+	post := &models2.Post{
 		Title:    "Title",
 		Text:     "Text",
 		Slug:     "title",
@@ -68,7 +68,7 @@ func TestPostRepository_GetBySlug_Inactive(t *testing.T) {
 
 	repo := NewPostRepository(tx, nil)
 
-	user := &models.User{
+	user := &models2.User{
 		Nickname: "u",
 		Email:    "u2@test.com",
 		Password: "123",
@@ -76,7 +76,7 @@ func TestPostRepository_GetBySlug_Inactive(t *testing.T) {
 	}
 	require.NoError(t, tx.Create(user).Error)
 
-	post := &models.Post{
+	post := &models2.Post{
 		Title:    "Hidden",
 		Slug:     "hidden",
 		UserID:   user.ID,
@@ -86,7 +86,7 @@ func TestPostRepository_GetBySlug_Inactive(t *testing.T) {
 
 	// теперь гарантированно делаем inactive в БД
 	require.NoError(t,
-		tx.Model(&models.Post{}).
+		tx.Model(&models2.Post{}).
 			Where("id = ?", post.ID).
 			Update("is_active", false).Error,
 	)
@@ -101,7 +101,7 @@ func TestPostRepository_List_OK(t *testing.T) {
 
 	repo := NewPostRepository(tx, nil)
 
-	user := &models.User{
+	user := &models2.User{
 		Nickname: "u",
 		Email:    "list@test.com",
 		Password: "123",
@@ -110,7 +110,7 @@ func TestPostRepository_List_OK(t *testing.T) {
 	require.NoError(t, tx.Create(user).Error)
 
 	for i := 1; i <= 5; i++ {
-		p := &models.Post{
+		p := &models2.Post{
 			Title:    fmt.Sprintf("Post %d", i),
 			Slug:     fmt.Sprintf("post-%d", i),
 			UserID:   user.ID,
@@ -132,7 +132,7 @@ func TestPostRepository_List_Search(t *testing.T) {
 
 	repo := NewPostRepository(tx, nil)
 
-	user := &models.User{
+	user := &models2.User{
 		Nickname: "u",
 		Email:    "search@test.com",
 		Password: "123",
@@ -140,14 +140,14 @@ func TestPostRepository_List_Search(t *testing.T) {
 	}
 	require.NoError(t, tx.Create(user).Error)
 
-	require.NoError(t, tx.Create(&models.Post{
+	require.NoError(t, tx.Create(&models2.Post{
 		Title:    "Go tutorial",
 		Slug:     "go",
 		UserID:   user.ID,
 		IsActive: true,
 	}).Error)
 
-	require.NoError(t, tx.Create(&models.Post{
+	require.NoError(t, tx.Create(&models2.Post{
 		Title:    "Python tutorial",
 		Slug:     "py",
 		UserID:   user.ID,
@@ -168,7 +168,7 @@ func TestPostRepository_UpdateOwnedBy_OK(t *testing.T) {
 
 	repo := NewPostRepository(tx, nil)
 
-	owner := &models.User{
+	owner := &models2.User{
 		Nickname: "o",
 		Email:    "o@test.com",
 		Password: "123",
@@ -176,7 +176,7 @@ func TestPostRepository_UpdateOwnedBy_OK(t *testing.T) {
 	}
 	require.NoError(t, tx.Create(owner).Error)
 
-	post := &models.Post{
+	post := &models2.Post{
 		Title:    "Old",
 		Slug:     "old",
 		UserID:   owner.ID,
@@ -200,13 +200,13 @@ func TestPostRepository_UpdateOwnedBy_NotOwner(t *testing.T) {
 
 	repo := NewPostRepository(tx, nil)
 
-	owner := &models.User{
+	owner := &models2.User{
 		Nickname: "o",
 		Email:    "o2@test.com",
 		Password: "123",
 		IsActive: true,
 	}
-	other := &models.User{
+	other := &models2.User{
 		Nickname: "x",
 		Email:    "x@test.com",
 		Password: "123",
@@ -215,7 +215,7 @@ func TestPostRepository_UpdateOwnedBy_NotOwner(t *testing.T) {
 	require.NoError(t, tx.Create(owner).Error)
 	require.NoError(t, tx.Create(other).Error)
 
-	post := &models.Post{
+	post := &models2.Post{
 		Title:    "Post",
 		Slug:     "post",
 		UserID:   owner.ID,
@@ -238,7 +238,7 @@ func TestPostRepository_DeleteOwnedBy_OK(t *testing.T) {
 
 	repo := NewPostRepository(tx, nil)
 
-	user := &models.User{
+	user := &models2.User{
 		Nickname: "u",
 		Email:    "del@test.com",
 		Password: "123",
@@ -246,7 +246,7 @@ func TestPostRepository_DeleteOwnedBy_OK(t *testing.T) {
 	}
 	require.NoError(t, tx.Create(user).Error)
 
-	post := &models.Post{
+	post := &models2.Post{
 		Title:    "Delete me",
 		Slug:     "del",
 		UserID:   user.ID,
