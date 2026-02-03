@@ -16,7 +16,7 @@ COPY . .
 
 # Сборка бинарей
 
-RUN CGO_ENABLED=0 GOOS=linux go build -o /out/api .
+RUN CGO_ENABLED=0 GOOS=linux go build -o /out/api ./cmd/api
 RUN CGO_ENABLED=0 GOOS=linux go build -o /out/publisher ./cmd/publisher
 RUN CGO_ENABLED=0 GOOS=linux go build -o /out/consumer ./cmd/consumer
 RUN CGO_ENABLED=0 GOOS=linux go build -o /out/replay ./cmd/replay

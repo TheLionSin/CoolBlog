@@ -7,7 +7,6 @@ import (
 	"go_blog/config"
 	"go_blog/internal/events"
 	"go_blog/internal/metrics"
-	"go_blog/internal/models"
 	"go_blog/internal/repositories"
 	"log"
 	"os"
@@ -61,14 +60,22 @@ func main() {
 
 	for {
 		select {
-		case <-ctx.Done():
+		case <-ctx.Done(): // ctx - это signal context
 			log.Println("shutdown requested, stopping fetch loop")
 			return
 
 		case <-ticker.C:
-			workCtx := context.Background() // НЕ ctx
+			// 1. Fetch делаем с таймаутом, но независимым от shutdown (или проверяем ctx перед этим)
+			// Если ctx отменен, мы просто не пойдем в базу.
+			if ctx.Err() != nil {
+				return
+			}
 
-			items, err := outboxRepo.FetchBatchForPublish(workCtx, 50)
+			fetchCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+
+			items, err := outboxRepo.FetchBatchForPublish(fetchCtx, 50)
+			cancel()
+
 			if err != nil {
 				log.Println("fetch outbox error:", err)
 				continue
@@ -129,24 +136,27 @@ func main() {
 				}
 
 				// 5) Publish
-				err = w.WriteMessages(ctx, msg)
+				publishCtx, cancelPub := context.WithTimeout(context.Background(), 10*time.Second)
+				err = w.WriteMessages(publishCtx, msg)
+				cancelPub()
+
 				if err != nil {
 					log.Printf("OUTBOX FAIL id=%d event_id=%s stage=kafka_publish topic=%s err=%v", it.ID, it.EventID, it.Topic, err)
 
 					metrics.OutboxRetry.Add(1)
 
-					status, _ := outboxRepo.MarkFailed(ctx, it.ID, "kafka publish: "+err.Error())
-					if status == models.OutboxDead {
-						metrics.OutboxDead.Add(1)
-					}
+					failCtx, cancelFail := context.WithTimeout(context.Background(), 5*time.Second)
+					_, _ = outboxRepo.MarkFailed(failCtx, it.ID, "kafka publish: "+err.Error())
+					cancelFail()
 					continue
 				}
 
 				// 6) Mark sent
-				if err := outboxRepo.MarkSent(ctx, it.ID); err != nil {
-					log.Println("mark sent error:", err)
-					continue
+				dbCtx, cancelDb := context.WithTimeout(context.Background(), 5*time.Second)
+				if err := outboxRepo.MarkSent(dbCtx, it.ID); err != nil {
+					log.Printf("CRITICAL: Message sent to Kafka but failed to update DB for id=%d: %v", it.ID, err)
 				}
+				cancelDb()
 
 				metrics.OutboxSent.Add(1)
 

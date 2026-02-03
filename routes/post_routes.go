@@ -1,7 +1,7 @@
 package routes
 
 import (
-	controllers2 "go_blog/internal/controllers"
+	"go_blog/internal/controllers"
 	"go_blog/internal/repositories"
 	"go_blog/internal/services"
 	"go_blog/middleware"
@@ -13,23 +13,33 @@ func RegisterPostRoutes(r *gin.Engine,
 	postService *services.PostService,
 	commentRepo *repositories.CommentRepository,
 	likeRepo *repositories.LikeRepository) {
-	r.GET("/posts", controllers2.ListPosts(postService))
-	r.GET("/posts/:slug", controllers2.GetPost(postService))
 
-	r.GET("/posts/:slug/comments", controllers2.ListCommentsForPost(commentRepo))
+	// 1. ИНИЦИАЛИЗАЦИЯ: Создаем экземпляр нашего нового контроллера
+	postController := controllers.NewPostController(postService)
 
-	r.GET("/posts/:slug/likes", controllers2.GetPostLikes(likeRepo))
+	// --- Публичные роуты ---
 
+	// Используем методы экземпляра (.List, .Get), а не вызов функции
+	r.GET("/posts", postController.List)
+	r.GET("/posts/:slug", postController.Get)
+
+	// Эти оставляем по-старому, пока не отрефакторим CommentController и LikeController
+	r.GET("/posts/:slug/comments", controllers.ListCommentsForPost(commentRepo))
+	r.GET("/posts/:slug/likes", controllers.GetPostLikes(likeRepo))
+
+	// --- Приватные роуты ---
 	auth := r.Group("/posts")
 	auth.Use(middleware.RequireAuth())
 
-	auth.POST("", controllers2.CreatePost(postService))
-	auth.PUT("/:slug", controllers2.UpdatePost(postService))
-	auth.DELETE("/:slug", controllers2.DeletePost(postService))
+	// Посты: используем методы нового контроллера
+	auth.POST("", postController.Create)
+	auth.PUT("/:slug", postController.Update)
+	auth.DELETE("/:slug", postController.Delete)
 
-	auth.POST("/:slug/like", controllers2.LikePost(likeRepo))
-	auth.DELETE("/:slug/like", controllers2.UnlikePost(likeRepo))
+	// Лайки и Комменты: оставляем старый стиль (Factory functions)
+	auth.POST("/:slug/like", controllers.LikePost(likeRepo))
+	auth.DELETE("/:slug/like", controllers.UnlikePost(likeRepo))
 
-	auth.POST("/:slug/comments", controllers2.CreateComment(commentRepo))
-	auth.DELETE("/comments/:id", controllers2.DeleteComment(commentRepo))
+	auth.POST("/:slug/comments", controllers.CreateComment(commentRepo))
+	auth.DELETE("/comments/:id", controllers.DeleteComment(commentRepo))
 }

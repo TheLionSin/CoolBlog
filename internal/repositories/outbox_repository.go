@@ -57,17 +57,35 @@ func (r *OutboxRepository) FetchBatchForPublish(ctx context.Context, limit int) 
 	var items []models.OutboxEvent
 	now := time.Now().UTC()
 
-	err := r.db.WithContext(ctx).
-		Where("status = ?", models.OutboxNew).
-		Where("next_attempt_at IS NULL OR next_attempt_at <= ?", now).
-		Order("id asc").
-		Limit(limit).
-		Clauses(
-			// SELECT ... FOR UPDATE SKIP LOCKED
-			// gorm: это способ избежать гонок при нескольких publisher
-			clause.Locking{Strength: "UPDATE", Options: "SKIP LOCKED"},
-		).
-		Find(&items).Error
+	// Время, на которое мы "бронируем" события.
+	// Если паблишер умрет, через 2 минуты эти события снова станут доступны другим.
+	leaseDuration := 2 * time.Minute
+
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// 1.Ищем и лочим
+		if err := tx.Where("status = ?", models.OutboxNew).
+			Where("next_attempt_at is NULL OR next_attempt_at <= ?", now).
+			Order("id asc").Limit(limit).
+			Clauses(clause.Locking{Strength: "UPDATE", Options: "SKIP LOCKED"}).
+			Find(&items).Error; err != nil {
+			return err
+		}
+		if len(items) == 0 {
+			return nil
+		}
+
+		// 2. Собираем ID найденных записей
+		ids := make([]uint, len(items))
+		for i, item := range items {
+			ids[i] = item.ID
+		}
+
+		// 3. "Бронируем" их (сдвигаем next_attempt_at), чтобы другие их не взяли
+		// даже после завершения этой транзакции.
+		return tx.Model(&models.OutboxEvent{}).
+			Where("id IN ?", ids).
+			Update("next_attempt_at", now.Add(leaseDuration)).Error
+	})
 
 	return items, err
 }

@@ -50,3 +50,54 @@ type Envelope struct {
 	Version int             `json:"version"`
 	Payload json.RawMessage `json:"payload"`
 }
+
+func NewPostUpdatedEvent(post *models.Post) (*models.OutboxEvent, error) {
+	// Логика такая же, как при создании - шлем актуальное состояние
+	// Можно оптимизировать и слать только diff (что изменилось),
+	// но для начала Full State - надежнее.
+	payload := PostUpdatedPayload{
+		PostID: utils.UintToString(post.ID),
+		Title:  post.Title,
+		Slug:   post.Slug,
+	}
+
+	payloadBytes, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+
+	return &models.OutboxEvent{
+		EventID:       uuid.NewString(),
+		Topic:         "blog.events",
+		EventType:     "PostUpdated", // <--- Другой тип
+		AggregateType: "post",
+		AggregateID:   utils.UintToString(post.ID),
+		ActorUserID:   utils.UintToString(post.UserID),
+		Payload:       string(payloadBytes),
+		OccurredAt:    time.Now().UTC(),
+		Status:        models.OutboxNew,
+	}, nil
+}
+
+func NewPostDeletedEvent(id, uid uint) (*models.OutboxEvent, error) {
+	payload := map[string]string{
+		"post_id": utils.UintToString(id),
+	}
+
+	payloadBytes, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+
+	return &models.OutboxEvent{
+		EventID:       uuid.NewString(),
+		Topic:         "blog.events",
+		EventType:     "PostDeleted", // <--- Тип удаления
+		AggregateType: "post",
+		AggregateID:   utils.UintToString(id),
+		ActorUserID:   utils.UintToString(uid),
+		Payload:       string(payloadBytes),
+		OccurredAt:    time.Now().UTC(),
+		Status:        models.OutboxNew,
+	}, nil
+}

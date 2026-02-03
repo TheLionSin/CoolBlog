@@ -77,26 +77,51 @@ func (s *PostService) Update(ctx context.Context, slug string, uid uint, title, 
 		return nil, ErrNoFieldsToUpdate
 	}
 
-	post, err := s.repo.UpdateOwnedBy(ctx, slug, uid, updates)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, ErrPostNotFound
+	var updatedPost *models2.Post
+
+	// START TRANSACTION
+	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		//1. Обновляем БД
+		post, err := s.repo.UpdateTx(ctx, tx, slug, uid, updates)
+		if err != nil {
+			return err // тут GORM вернет RecordNotFound
 		}
+		updatedPost = post
+
+		//2. Создаем событие
+		evt, err := events.NewPostUpdatedEvent(post)
+		if err != nil {
+			return err
+		}
+
+		//3. Пишем в Outbox
+		return s.outbox.CreateTx(ctx, tx, evt)
+	})
+
+	if err != nil {
 		return nil, err
 	}
 
-	return post, nil
+	return updatedPost, nil
+
 }
 
 func (s *PostService) Delete(ctx context.Context, slug string, uid uint) error {
-	err := s.repo.DeleteOwnedBy(ctx, slug, uid)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return ErrPostNotFound
+	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// 1.Удаляем из БД
+		post, err := s.repo.DeleteTx(ctx, tx, slug, uid)
+		if err != nil {
+			return err
 		}
-		return err
-	}
-	return nil
+		//2. Создаем событие
+		evt, err := events.NewPostDeletedEvent(post.ID, uid)
+		if err != nil {
+			return err
+		}
+
+		//3. Пишем в Outbox
+		return s.outbox.CreateTx(ctx, tx, evt)
+	})
 }
 
 func (s *PostService) Get(ctx context.Context, slug string) (*models2.Post, error) {

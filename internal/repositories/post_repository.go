@@ -211,25 +211,85 @@ func (r *PostRepository) CreateTx(ctx context.Context, tx *gorm.DB, uid uint, ti
 			UserID: uid,
 		}
 
+		// 1. Делаем точку сохранения перед опасной операцией
+		tx.SavePoint("sp_slug_check")
+
+		// 2. Пробуем создать
 		err := tx.WithContext(ctx).Create(post).Error
 		if err == nil {
 			r.bumpListVersion(ctx)
 			return post, nil
 		}
 
-		// Проверяем, ошибка ли это дубликата?
-		// В GORM и Postgres ошибка дубликата обычно содержит строку "23505" или мы можем проверить стандартную ошибку
-		// Более надежный способ для Postgres:
-		if strings.Contains(err.Error(), "duplicate key") || strings.Contains(err.Error(), "23505") {
-			// Слаг занят, генерируем новый (base-1, base-2...)
+		// 3. ЕСЛИ ОШИБКА: Обязательно откатываемся к точке сохранения!
+		// Это "оживляет" транзакцию в Postgres, отменяя последнюю неудачную команду.
+		tx.RollbackTo("sp_slug_check")
+
+		// 4. Анализируем ошибку
+		// Приводим к нижнему регистру для надежности
+		errStr := strings.ToLower(err.Error())
+
+		// Ищем "unique" (для SQLite/других баз), "duplicate" (Postgres) или код "23505"
+		if strings.Contains(errStr, "unique") ||
+			strings.Contains(errStr, "duplicate") ||
+			strings.Contains(errStr, "23505") {
+
+			// Это ошибка уникальности. Генерируем новый слаг и пробуем снова.
+			// В логах ты все равно будет красная ошибка
+			// это GORM ругается до того, как мы обработали ошибку.
 			slug = fmt.Sprintf("%s-%d", baseSlug, i+1)
 			continue
 		}
 
+		// Если ошибка другая (например, база упала) - возвращаем её
 		return nil, err
 	}
 
 	return nil, fmt.Errorf("failed to generate unique slug after retries")
+}
+
+func (r *PostRepository) UpdateTx(ctx context.Context, tx *gorm.DB, slug string, uid uint, updates map[string]any) (*models.Post, error) {
+	var post models.Post
+	// 1. Ищем пост (блокируем строку FOR UPDATE, чтобы избежать гонок при редактировании)
+	// Clause(clause.Locking{Strength: "UPDATE"}) - это уровень Senior, пока можно без него, но полезно знать
+	if err := tx.WithContext(ctx).Where("slug = ? AND user_id = ? AND is_active = ?", slug, uid, true).First(&post).Error; err != nil {
+		return nil, err
+	}
+
+	//2. Обновляем
+	if err := tx.WithContext(ctx).Model(&post).Updates(updates).Error; err != nil {
+		return nil, err
+	}
+
+	// 3. Возвращаем обновленный объект (нужен для события)
+	if err := tx.WithContext(ctx).First(&post, post.ID).Error; err != nil {
+		return nil, err
+	}
+
+	// 4. Сбрасываем кэши (Redis чистим тут же, так как это не отменить)
+	// (По-хорошему кэш надо чистить ПОСЛЕ коммита транзакции, но пока допустимо тут)
+	if r.rdb != nil {
+		_ = r.rdb.Del(ctx, postBySlugKey(post.Slug)).Err()
+	}
+	// r.bumpListVersion(ctx) - это лучше вызывать в сервисе или оставить тут, но помнить про Redis
+
+	return &post, nil
+}
+
+func (r *PostRepository) DeleteTx(ctx context.Context, tx *gorm.DB, slug string, uid uint) (*models.Post, error) {
+	var post models.Post
+	if err := tx.WithContext(ctx).Where("slug = ? AND user_id = ? AND is_active = ?", slug, uid, true).First(&post).Error; err != nil {
+		return nil, err
+	}
+
+	if err := tx.WithContext(ctx).Delete(&post).Error; err != nil {
+		return nil, err
+	}
+	if r.rdb != nil {
+		_ = r.rdb.Del(ctx, postBySlugKey(slug)).Err()
+	}
+
+	return &post, nil
 }
 
 func (r *PostRepository) UpdateOwnedBy(ctx context.Context, slug string, uid uint, updates map[string]any) (*models.Post, error) {

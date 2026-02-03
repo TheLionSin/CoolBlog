@@ -29,17 +29,17 @@ type PostListResponse struct {
 	Posts []PostResponse `json:"posts"`
 }
 
-type PostResponseWithAuthor struct {
-	ID        uint   `json:"id"`
-	Title     string `json:"title"`
-	Text      string `json:"text"`
-	Slug      string `json:"slug"`
-	IsActive  bool   `json:"is_active"`
-	CreatedAt string `json:"created_at"`
-	UpdatedAt string `json:"updated_at"`
-	Author    struct {
-		ID       uint   `json:"id"`
-		Nickname string `json:"nickname"`
-		Email    string `json:"email"`
-	} `json:"author"`
-}
+//type PostResponseWithAuthor struct {
+//	ID        uint   `json:"id"`
+//	Title     string `json:"title"`
+//	Text      string `json:"text"`
+//	Slug      string `json:"slug"`
+//	IsActive  bool   `json:"is_active"`
+//	CreatedAt string `json:"created_at"`
+//	UpdatedAt string `json:"updated_at"`
+//	Author    struct {
+//		ID       uint   `json:"id"`
+//		Nickname string `json:"nickname"`
+//		Email    string `json:"email"`
+//	} `json:"author"`
+//}

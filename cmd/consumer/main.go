@@ -12,6 +12,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -76,9 +77,26 @@ func main() {
 		}
 
 		if err := auditRepo.Create(ctx, &logEntry); err != nil {
-			log.Println("failed to save audit log:", err)
-			metrics.ConsumerErrors.Add(1)
-			continue
+			// Проверяем: это дубликат?
+			// (Для простоты проверяем текст, по-хорошему надо проверять код ошибки Postgres 23505)
+			isDuplicate := false
+			// В GORM/Postgres ошибка часто содержит этот текст
+			if strings.Contains(err.Error(), "duplicate key") || strings.Contains(err.Error(), "unique constraint") {
+				isDuplicate = true
+			}
+
+			if isDuplicate {
+				log.Printf("Event %s already processed, skipping", env.EventID)
+				// Мы НЕ делаем continue, мы идем дальше к коммиту!
+			} else {
+				// Реальная ошибка (нет подключения к БД и т.д.)
+				// Вот тут мы не можем коммитить, надо ретраить или падать
+				log.Println("failed to save audit log:", err)
+				metrics.ConsumerErrors.Add(1)
+
+				time.Sleep(time.Second)
+				continue
+			}
 		}
 
 		log.Printf(
