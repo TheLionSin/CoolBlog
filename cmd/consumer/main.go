@@ -34,7 +34,7 @@ func main() {
 
 	reader := kafka.NewReader(kafka.ReaderConfig{
 		Brokers:     []string{brokers},
-		GroupTopics: []string{"blog.events", "blog.users", "blog.events.dlq"},
+		GroupTopics: []string{"blog.events", "blog.users", "blog.events.dlq", "blog.comments"},
 		GroupID:     "audit-log-consumer",
 	})
 

@@ -6,8 +6,8 @@ import (
 	"go_blog/config"
 	"go_blog/internal/models"
 	"go_blog/internal/repositories"
+	"go_blog/internal/routes"
 	"go_blog/internal/services"
-	"go_blog/routes"
 	"log"
 	"net/http"
 	"os"
@@ -41,8 +41,9 @@ func main() {
 	authService := services.NewAuthService(db, userRepo, tokenRepo, outboxRepo)
 	userService := services.NewUserService(db, userRepo, outboxRepo)
 	postService := services.NewPostService(db, postRepo, outboxRepo)
-	
-	r := routes.SetupRoutes(authService, userService, postService, commentRepo, likeRepo)
+	commentService := services.NewCommentService(db, commentRepo, postRepo, outboxRepo)
+
+	r := routes.SetupRoutes(authService, userService, postService, commentService, likeRepo)
 
 	srv := &http.Server{
 		Addr:    ":8080",

@@ -11,11 +11,12 @@ import (
 
 func RegisterPostRoutes(r *gin.Engine,
 	postService *services.PostService,
-	commentRepo *repositories.CommentRepository,
+	commentService *services.CommentService,
 	likeRepo *repositories.LikeRepository) {
 
 	// 1. ИНИЦИАЛИЗАЦИЯ: Создаем экземпляр нашего нового контроллера
 	postController := controllers.NewPostController(postService)
+	commentController := controllers.NewCommentController(commentService)
 
 	// --- Публичные роуты ---
 
@@ -23,8 +24,7 @@ func RegisterPostRoutes(r *gin.Engine,
 	r.GET("/posts", postController.List)
 	r.GET("/posts/:slug", postController.Get)
 
-	// Эти оставляем по-старому, пока не отрефакторим CommentController и LikeController
-	r.GET("/posts/:slug/comments", controllers.ListCommentsForPost(commentRepo))
+	r.GET("/posts/:slug/comments", commentController.List)
 	r.GET("/posts/:slug/likes", controllers.GetPostLikes(likeRepo))
 
 	// --- Приватные роуты ---
@@ -40,6 +40,6 @@ func RegisterPostRoutes(r *gin.Engine,
 	auth.POST("/:slug/like", controllers.LikePost(likeRepo))
 	auth.DELETE("/:slug/like", controllers.UnlikePost(likeRepo))
 
-	auth.POST("/:slug/comments", controllers.CreateComment(commentRepo))
-	auth.DELETE("/comments/:id", controllers.DeleteComment(commentRepo))
+	auth.POST("/:slug/comments", commentController.Create)
+	auth.DELETE("/comments/:id", commentController.Delete)
 }

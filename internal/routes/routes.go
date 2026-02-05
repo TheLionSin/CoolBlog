@@ -8,7 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func SetupRoutes(authService *services.AuthService, userService *services.UserService, postService *services.PostService, commentRepo *repositories.CommentRepository, likeRepo *repositories.LikeRepository) *gin.Engine {
+func SetupRoutes(authService *services.AuthService, userService *services.UserService, postService *services.PostService, commentService *services.CommentService, likeRepo *repositories.LikeRepository) *gin.Engine {
 	r := gin.Default()
 
 	r.GET("/health", func(c *gin.Context) {
@@ -19,7 +19,7 @@ func SetupRoutes(authService *services.AuthService, userService *services.UserSe
 
 	RegisterAuthRoutes(r, authService)
 	RegisterUserRoutes(r, userService)
-	RegisterPostRoutes(r, postService, commentRepo, likeRepo)
+	RegisterPostRoutes(r, postService, commentService, likeRepo)
 
 	return r
 }
