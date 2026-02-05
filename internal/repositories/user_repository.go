@@ -19,6 +19,21 @@ func NewUserRepository(db *gorm.DB) *UserRepository {
 	return &UserRepository{db: db}
 }
 
+func (r *UserRepository) CreateTx(ctx context.Context, tx *gorm.DB, user *models.User) error {
+	err := tx.WithContext(ctx).Create(user).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrDuplicatedKey) {
+			return ErrUserExists
+		}
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			return ErrUserExists
+		}
+		return err
+	}
+	return nil
+}
+
 func (r *UserRepository) Create(ctx context.Context, user *models.User) error {
 	if err := r.db.WithContext(ctx).Create(user).Error; err != nil {
 		if errors.Is(err, gorm.ErrDuplicatedKey) {
@@ -31,6 +46,10 @@ func (r *UserRepository) Create(ctx context.Context, user *models.User) error {
 		return err
 	}
 	return nil
+}
+
+func (r *UserRepository) UpdateTx(ctx context.Context, tx *gorm.DB, user *models.User, updates map[string]any) error {
+	return tx.WithContext(ctx).Model(user).Updates(updates).Error
 }
 
 func (r *UserRepository) FindByEmail(ctx context.Context, email string) (*models.User, error) {

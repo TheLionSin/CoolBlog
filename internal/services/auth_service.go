@@ -5,7 +5,7 @@ import (
 	"errors"
 	"go_blog/internal/dto"
 	"go_blog/internal/models"
-	utils2 "go_blog/internal/utils"
+	"go_blog/internal/utils"
 	"go_blog/stores"
 	"time"
 
@@ -27,7 +27,7 @@ func NewAuthService(users UserRepo, tokens stores.RefreshStore) *AuthService {
 }
 
 func (s *AuthService) Register(ctx context.Context, req dto.RegisterRequest) (dto.RegisterResponse, error) {
-	hash, err := utils2.HashPassword(req.Password)
+	hash, err := utils.HashPassword(req.Password)
 	if err != nil {
 		return dto.RegisterResponse{}, err
 	}
@@ -53,16 +53,16 @@ func (s *AuthService) Login(ctx context.Context, req dto.LoginRequest) (dto.Toke
 		return dto.TokenPairResponse{}, err
 	}
 
-	if !utils2.CheckPasswordHash(user.Password, req.Password) {
+	if !utils.CheckPasswordHash(user.Password, req.Password) {
 		return dto.TokenPairResponse{}, ErrInvalidCredentials
 	}
 
-	access, err := utils2.GenerateAccessJWT(user.ID, user.Role)
+	access, err := utils.GenerateAccessJWT(user.ID, user.Role)
 	if err != nil {
 		return dto.TokenPairResponse{}, ErrToken
 	}
 
-	plain, hash, exp, err := utils2.NewRefreshToken()
+	plain, hash, exp, err := utils.NewRefreshToken()
 	if err != nil {
 		return dto.TokenPairResponse{}, ErrToken
 	}
@@ -78,7 +78,7 @@ func (s *AuthService) Login(ctx context.Context, req dto.LoginRequest) (dto.Toke
 }
 
 func (s *AuthService) Refresh(ctx context.Context, refreshPlain string) (dto.TokenPairResponse, error) {
-	oldHash := utils2.HashRefresh(refreshPlain)
+	oldHash := utils.HashRefresh(refreshPlain)
 
 	userID, err := s.tokens.GetUserIDByHash(ctx, oldHash)
 	if err != nil {
@@ -93,12 +93,12 @@ func (s *AuthService) Refresh(ctx context.Context, refreshPlain string) (dto.Tok
 		return dto.TokenPairResponse{}, err
 	}
 
-	access, err := utils2.GenerateAccessJWT(user.ID, user.Role)
+	access, err := utils.GenerateAccessJWT(user.ID, user.Role)
 	if err != nil {
 		return dto.TokenPairResponse{}, ErrToken
 	}
 
-	plain, newHash, exp, err := utils2.NewRefreshToken()
+	plain, newHash, exp, err := utils.NewRefreshToken()
 	if err != nil {
 		return dto.TokenPairResponse{}, ErrToken
 	}
@@ -114,7 +114,7 @@ func (s *AuthService) Refresh(ctx context.Context, refreshPlain string) (dto.Tok
 }
 
 func (s *AuthService) Logout(ctx context.Context, refreshPlain string) error {
-	hash := utils2.HashRefresh(refreshPlain)
+	hash := utils.HashRefresh(refreshPlain)
 
 	userID, err := s.tokens.GetUserIDByHash(ctx, hash)
 	if err != nil {
