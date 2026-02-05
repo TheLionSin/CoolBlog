@@ -33,9 +33,9 @@ func main() {
 	log.Println("KAFKA_BROKERS =", brokers)
 
 	reader := kafka.NewReader(kafka.ReaderConfig{
-		Brokers: []string{brokers},
-		Topic:   "blog.events",
-		GroupID: "audit-log-consumer",
+		Brokers:     []string{brokers},
+		GroupTopics: []string{"blog.events", "blog.users", "blog.events.dlq"},
+		GroupID:     "audit-log-consumer",
 	})
 
 	defer reader.Close()

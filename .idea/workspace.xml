@@ -5,15 +5,23 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="aaa25540-7e3c-4461-a4ac-ce728ffcdf4f" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/internal/events/user_events.go" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/internal/repositories/refresh_token_repository.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/golang_blog_kafka.iml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/vcs.xml" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/internal/controllers/user_controller.go" beforeDir="false" afterPath="$PROJECT_DIR$/internal/controllers/user_controller.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/internal/dto/user_dto.go" beforeDir="false" afterPath="$PROJECT_DIR$/internal/dto/user_dto.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/internal/repositories/user_repository.go" beforeDir="false" afterPath="$PROJECT_DIR$/internal/repositories/user_repository.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmd/api/main.go" beforeDir="false" afterPath="$PROJECT_DIR$/cmd/api/main.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmd/consumer/main.go" beforeDir="false" afterPath="$PROJECT_DIR$/cmd/consumer/main.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmd/publisher/main.go" beforeDir="false" afterPath="$PROJECT_DIR$/cmd/publisher/main.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/docker-compose.kafka.yml" beforeDir="false" afterPath="$PROJECT_DIR$/docker-compose.kafka.yml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/controllers/auth_controller.go" beforeDir="false" afterPath="$PROJECT_DIR$/internal/controllers/auth_controller.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/controllers/comments_controller.go" beforeDir="false" afterPath="$PROJECT_DIR$/internal/controllers/comments_controller.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/controllers/http_errors.go" beforeDir="false" afterPath="$PROJECT_DIR$/internal/controllers/http_errors.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/models/refresh_token.go" beforeDir="false" afterPath="$PROJECT_DIR$/internal/models/refresh_token.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/repositories/comment_repository.go" beforeDir="false" afterPath="$PROJECT_DIR$/internal/repositories/comment_repository.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/repositories/refresh_token_repository.go" beforeDir="false" afterPath="$PROJECT_DIR$/internal/repositories/refresh_token_repository.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/internal/services/auth_service.go" beforeDir="false" afterPath="$PROJECT_DIR$/internal/services/auth_service.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/internal/services/user_service.go" beforeDir="false" afterPath="$PROJECT_DIR$/internal/services/user_service.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/routes/user_routes.go" beforeDir="false" afterPath="$PROJECT_DIR$/routes/user_routes.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/services/errors.go" beforeDir="false" afterPath="$PROJECT_DIR$/internal/services/errors.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/routes/auth_routes.go" beforeDir="false" afterPath="$PROJECT_DIR$/routes/auth_routes.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tmp/build-errors.log" beforeDir="false" afterPath="$PROJECT_DIR$/tmp/build-errors.log" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -43,6 +51,10 @@
     &quot;accountId&quot;: &quot;c96e6dc2-5ce0-4c13-8756-f49ea5ada145&quot;
   }
 }</component>
+  <component name="KubernetesApiPersistence">{}</component>
+  <component name="KubernetesApiProvider">{
+  &quot;isMigrated&quot;: true
+}</component>
   <component name="ProjectColorInfo">{
   &quot;customColor&quot;: &quot;&quot;,
   &quot;associatedIndex&quot;: 7
@@ -71,7 +83,7 @@
     &quot;git-widget-placeholder&quot;: &quot;main&quot;,
     &quot;go.import.settings.migrated&quot;: &quot;true&quot;,
     &quot;go.sdk.automatically.set&quot;: &quot;true&quot;,
-    &quot;last_opened_file_path&quot;: &quot;C:/Users/PC&quot;,
+    &quot;last_opened_file_path&quot;: &quot;C:/Users/User&quot;,
     &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
     &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
     &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;
@@ -87,11 +99,12 @@
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
-        <option value="bundled-gosdk-f466f9b0953e-61a6b8fd16fd-org.jetbrains.plugins.go.sharedIndexes.bundled-GO-252.28539.22" />
-        <option value="bundled-js-predefined-d6986cc7102b-a71380e98a7c-JavaScript-GO-252.28539.22" />
+        <option value="bundled-gosdk-d297c17c1fbd-85c80fddc9a6-org.jetbrains.plugins.go.sharedIndexes.bundled-GO-243.23654.166" />
+        <option value="bundled-js-predefined-d6986cc7102b-822845ee3bb5-JavaScript-GO-243.23654.166" />
       </set>
     </attachedChunks>
   </component>
+  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
   <component name="TaskManager">
     <task active="true" id="Default" summary="Default task">
       <changelist id="aaa25540-7e3c-4461-a4ac-ce728ffcdf4f" name="Changes" comment="" />

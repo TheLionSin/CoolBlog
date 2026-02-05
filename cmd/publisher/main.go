@@ -32,23 +32,14 @@ func main() {
 		brokers = "localhost:9092"
 	}
 
-	eventsWriter := &kafka.Writer{
-		Addr:         kafka.TCP(brokers),
-		Topic:        TopicEvents,
+	writer := &kafka.Writer{
+		Addr: kafka.TCP(brokers),
+		//Topic:        TopicEvents,
 		Balancer:     &kafka.Hash{},
 		RequiredAcks: kafka.RequireAll,
 		Async:        false,
 	}
-	defer eventsWriter.Close()
-
-	dlqWriter := &kafka.Writer{
-		Addr:         kafka.TCP(brokers),
-		Topic:        TopicDLQ,
-		Balancer:     &kafka.Hash{},
-		RequiredAcks: kafka.RequireAll,
-		Async:        false,
-	}
-	defer dlqWriter.Close()
+	defer writer.Close()
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -110,14 +101,9 @@ func main() {
 					continue
 				}
 
-				// 3) Выбираем writer по it.Topic
-				w := eventsWriter
-				if it.Topic == TopicDLQ {
-					w = dlqWriter
-				}
-
 				// 4) Формируем kafka message
 				msg := kafka.Message{
+					Topic: it.Topic,
 					Key:   []byte(it.AggregateID),
 					Value: value,
 					Time:  time.Now(),
@@ -137,7 +123,7 @@ func main() {
 
 				// 5) Publish
 				publishCtx, cancelPub := context.WithTimeout(context.Background(), 10*time.Second)
-				err = w.WriteMessages(publishCtx, msg)
+				err = writer.WriteMessages(publishCtx, msg)
 				cancelPub()
 
 				if err != nil {

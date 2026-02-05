@@ -4,11 +4,10 @@ import (
 	"context"
 	"errors"
 	"go_blog/config"
-	models2 "go_blog/internal/models"
+	"go_blog/internal/models"
 	"go_blog/internal/repositories"
 	"go_blog/internal/services"
 	"go_blog/routes"
-	"go_blog/stores"
 	"log"
 	"net/http"
 	"os"
@@ -28,20 +27,21 @@ func main() {
 
 	rdb := config.InitRedis()
 
-	config.DB.AutoMigrate(&models2.User{}, &models2.Post{}, &models2.RefreshToken{}, &models2.PostLike{}, &models2.Comment{}, &models2.AuditLog{}, &models2.OutboxEvent{})
+	config.DB.AutoMigrate(&models.User{}, &models.Post{}, &models.RefreshToken{}, &models.PostLike{}, &models.Comment{}, &models.AuditLog{}, &models.OutboxEvent{})
 
+	//Repositories
 	userRepo := repositories.NewUserRepository(db)
 	postRepo := repositories.NewPostRepository(db, rdb)
 	commentRepo := repositories.NewCommentRepository(db)
 	likeRepo := repositories.NewLikeRepository(db)
 	outboxRepo := repositories.NewOutboxRepository(db)
+	tokenRepo := repositories.NewRefreshTokenRepository(db)
 
-	refreshStore := stores.NewRefreshRedisStore(rdb)
-
-	authService := services.NewAuthService(userRepo, refreshStore)
-	userService := services.NewUserService(userRepo)
+	//Services
+	authService := services.NewAuthService(db, userRepo, tokenRepo, outboxRepo)
+	userService := services.NewUserService(db, userRepo, outboxRepo)
 	postService := services.NewPostService(db, postRepo, outboxRepo)
-
+	
 	r := routes.SetupRoutes(authService, userService, postService, commentRepo, likeRepo)
 
 	srv := &http.Server{

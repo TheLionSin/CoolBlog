@@ -4,9 +4,10 @@ import (
 	"context"
 	"errors"
 	"go_blog/internal/dto"
+	"go_blog/internal/events"
 	"go_blog/internal/models"
+	"go_blog/internal/repositories"
 	"go_blog/internal/utils"
-	"go_blog/stores"
 	"time"
 
 	"gorm.io/gorm"
@@ -18,111 +19,208 @@ type UserRepo interface {
 	FindByID(ctx context.Context, id uint) (*models.User, error)
 }
 type AuthService struct {
-	users  UserRepo
-	tokens stores.RefreshStore
+	db         *gorm.DB
+	userRepo   *repositories.UserRepository
+	tokenRepo  *repositories.RefreshTokenRepository
+	outboxRepo *repositories.OutboxRepository
 }
 
-func NewAuthService(users UserRepo, tokens stores.RefreshStore) *AuthService {
-	return &AuthService{users: users, tokens: tokens}
+func NewAuthService(db *gorm.DB,
+	userRepo *repositories.UserRepository,
+	tokenRepo *repositories.RefreshTokenRepository,
+	outboxRepo *repositories.OutboxRepository,
+) *AuthService {
+	return &AuthService{
+		db:         db,
+		userRepo:   userRepo,
+		tokenRepo:  tokenRepo,
+		outboxRepo: outboxRepo,
+	}
 }
 
-func (s *AuthService) Register(ctx context.Context, req dto.RegisterRequest) (dto.RegisterResponse, error) {
+// Register - Атомарная регистрация + Вход + Событие
+func (s *AuthService) Register(ctx context.Context, req dto.RegisterRequest, userAgent, ip string) (*dto.TokenPairResponse, error) {
 	hash, err := utils.HashPassword(req.Password)
 	if err != nil {
-		return dto.RegisterResponse{}, err
+		return nil, err
 	}
 
 	user := &models.User{
 		Nickname: req.Nickname,
 		Email:    req.Email,
-		Password: hash}
-
-	if err := s.users.Create(ctx, user); err != nil {
-		return dto.RegisterResponse{}, err
+		Password: hash,
+		Role:     "user",
+		IsActive: true,
 	}
 
-	return dto.RegisterResponse{ID: user.ID, Nickname: user.Nickname, Email: user.Email}, nil
+	var tokens *dto.TokenPairResponse
+
+	// START TRANSACTION
+	err = s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		//1. Create user
+		if err := s.userRepo.CreateTx(ctx, tx, user); err != nil {
+			return err
+		}
+
+		//2. Generate tokens(auto-login)
+		accessToken, err := utils.GenerateAccessJWT(user.ID, user.Role)
+		if err != nil {
+			return err
+		}
+
+		refreshPlain, refreshHash, exp, err := utils.NewRefreshToken()
+		if err != nil {
+			return err
+		}
+
+		//3. Save RefreshToken in DB(with user)
+		tokenModel := &models.RefreshToken{
+			UserID:    user.ID,
+			TokenHash: refreshHash,
+			ExpiresAt: exp,
+			UserAgent: userAgent,
+			IP:        ip,
+		}
+		if err := s.tokenRepo.CreateTx(ctx, tx, tokenModel); err != nil {
+			return err
+		}
+
+		//4. Event "UserRegistered" (для email рассылки)
+		evt, err := events.NewUserRegisteredEvent(user)
+		if err != nil {
+			return err
+		}
+		if err := s.outboxRepo.CreateTx(ctx, tx, evt); err != nil {
+			return err
+		}
+
+		tokens = &dto.TokenPairResponse{
+			AccessToken:  accessToken,
+			RefreshToken: refreshPlain, // Отдаем юзеру чистый токен (в базе только хэш)
+		}
+		return nil
+	})
+
+	return tokens, err
+
 }
 
-func (s *AuthService) Login(ctx context.Context, req dto.LoginRequest) (dto.TokenPairResponse, error) {
-	user, err := s.users.FindByEmail(ctx, req.Email)
+func (s *AuthService) Login(ctx context.Context, req dto.LoginRequest, userAgent, ip string) (*dto.TokenPairResponse, error) {
+
+	//1. FindUser
+	user, err := s.userRepo.FindByEmail(ctx, req.Email)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return dto.TokenPairResponse{}, ErrInvalidCredentials
+			return nil, ErrInvalidCredentials
 		}
-		return dto.TokenPairResponse{}, err
+		return nil, err
 	}
 
+	//2. Check password
 	if !utils.CheckPasswordHash(user.Password, req.Password) {
-		return dto.TokenPairResponse{}, ErrInvalidCredentials
+		return nil, ErrInvalidCredentials
 	}
 
-	access, err := utils.GenerateAccessJWT(user.ID, user.Role)
+	//3. Generate tokens
+	accessToken, err := utils.GenerateAccessJWT(user.ID, user.Role)
 	if err != nil {
-		return dto.TokenPairResponse{}, ErrToken
+		return nil, err
 	}
-
-	plain, hash, exp, err := utils.NewRefreshToken()
+	refreshPlain, refreshHash, exp, err := utils.NewRefreshToken()
 	if err != nil {
-		return dto.TokenPairResponse{}, ErrToken
+		return nil, err
 	}
 
-	if err := s.tokens.Save(ctx, user.ID, hash, time.Until(exp)); err != nil {
-		return dto.TokenPairResponse{}, err
+	// 4. Сохраняем сессию (Транзакция тут не обязательна, но желательна, если будем писать AuditLog входа)
+	tokenModel := &models.RefreshToken{
+		UserID:    user.ID,
+		TokenHash: refreshHash,
+		ExpiresAt: exp,
+		UserAgent: userAgent,
+		IP:        ip,
 	}
 
-	return dto.TokenPairResponse{
-		AccessToken:  access,
-		RefreshToken: plain,
+	// Используем db.Transaction для консистентности (вдруг захотим добавить AuditLog "UserLoggedIn")
+	err = s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		return s.tokenRepo.CreateTx(ctx, tx, tokenModel)
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &dto.TokenPairResponse{
+		AccessToken:  accessToken,
+		RefreshToken: refreshPlain,
 	}, nil
+
 }
 
-func (s *AuthService) Refresh(ctx context.Context, refreshPlain string) (dto.TokenPairResponse, error) {
+// Refresh - Обновление токенов (Rotate)
+func (s *AuthService) Refresh(ctx context.Context, refreshPlain string, userAgent, ip string) (*dto.TokenPairResponse, error) {
 	oldHash := utils.HashRefresh(refreshPlain)
 
-	userID, err := s.tokens.GetUserIDByHash(ctx, oldHash)
+	//1. Find token in db
+	oldToken, err := s.tokenRepo.GetByHash(ctx, oldHash)
 	if err != nil {
-		if errors.Is(err, stores.ErrInvalidRefresh) {
-			return dto.TokenPairResponse{}, ErrInvalidRefresh
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrInvalidToken
 		}
-		return dto.TokenPairResponse{}, err
+		return nil, err
 	}
 
-	user, err := s.users.FindByID(ctx, userID)
+	//2. Check validate
+	if oldToken.ExpiresAt.Before(time.Now()) {
+		_ = s.tokenRepo.Delete(ctx, oldToken.ID) //Чистим протухший
+		return nil, ErrInvalidToken
+	}
+
+	//3. Generate new
+	user := oldToken.User
+	accessToken, err := utils.GenerateAccessJWT(user.ID, user.Role)
 	if err != nil {
-		return dto.TokenPairResponse{}, err
+		return nil, err
 	}
-
-	access, err := utils.GenerateAccessJWT(user.ID, user.Role)
+	newPlain, newHash, exp, err := utils.NewRefreshToken()
 	if err != nil {
-		return dto.TokenPairResponse{}, ErrToken
+		return nil, err
 	}
 
-	plain, newHash, exp, err := utils.NewRefreshToken()
+	// 4. Ротация (Удаляем старый, создаем новый)
+	// Важно делать в транзакции!
+
+	err = s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		//Delete old
+		if err := tx.Delete(&models.RefreshToken{}, oldToken.ID).Error; err != nil {
+			return err
+		}
+
+		//Create new
+		newToken := &models.RefreshToken{
+			UserID:    user.ID,
+			TokenHash: newHash,
+			ExpiresAt: exp,
+			UserAgent: userAgent,
+			IP:        ip,
+		}
+		return s.tokenRepo.CreateTx(ctx, tx, newToken)
+	})
+
 	if err != nil {
-		return dto.TokenPairResponse{}, ErrToken
+		return nil, err
 	}
 
-	if err := s.tokens.Rotate(ctx, oldHash, user.ID, newHash, time.Until(exp)); err != nil {
-		return dto.TokenPairResponse{}, err
-	}
-
-	return dto.TokenPairResponse{
-		AccessToken:  access,
-		RefreshToken: plain,
+	return &dto.TokenPairResponse{
+		AccessToken:  accessToken,
+		RefreshToken: newPlain,
 	}, nil
 }
 
 func (s *AuthService) Logout(ctx context.Context, refreshPlain string) error {
 	hash := utils.HashRefresh(refreshPlain)
-
-	userID, err := s.tokens.GetUserIDByHash(ctx, hash)
+	token, err := s.tokenRepo.GetByHash(ctx, hash)
 	if err != nil {
-		if errors.Is(err, stores.ErrInvalidRefresh) {
-			return nil
-		}
-		return err
+		return nil // Уже удален или не найден, для логаута это ОК
 	}
 
-	return s.tokens.Delete(ctx, hash, userID)
+	return s.tokenRepo.Delete(ctx, token.ID)
 }

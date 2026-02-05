@@ -3,7 +3,7 @@ package repositories
 import (
 	"context"
 	"errors"
-	models2 "go_blog/internal/models"
+	"go_blog/internal/models"
 
 	"gorm.io/gorm"
 )
@@ -17,20 +17,20 @@ func NewCommentRepository(db *gorm.DB) *CommentRepository {
 }
 
 func (r *CommentRepository) postIDBySlug(ctx context.Context, slug string) (uint, error) {
-	var post models2.Post
+	var post models.Post
 	if err := r.db.WithContext(ctx).Where("slug = ? AND is_active = ?", slug, true).First(&post).Error; err != nil {
 		return 0, err
 	}
 	return post.ID, nil
 }
 
-func (r *CommentRepository) Create(ctx context.Context, postSlug string, userID uint, text string) (*models2.Comment, error) {
+func (r *CommentRepository) Create(ctx context.Context, postSlug string, userID uint, text string) (*models.Comment, error) {
 	postID, err := r.postIDBySlug(ctx, postSlug)
 	if err != nil {
 		return nil, err
 	}
 
-	comment := &models2.Comment{
+	comment := &models.Comment{
 		PostID: postID,
 		UserID: userID,
 		Text:   text,
@@ -44,7 +44,7 @@ func (r *CommentRepository) Create(ctx context.Context, postSlug string, userID 
 }
 
 func (r *CommentRepository) DeleteOwnedBy(ctx context.Context, commentID, userID uint) error {
-	var comment models2.Comment
+	var comment models.Comment
 	if err := r.db.WithContext(ctx).Where("id = ?", commentID).First(&comment).Error; err != nil {
 		return err
 	}
@@ -56,13 +56,13 @@ func (r *CommentRepository) DeleteOwnedBy(ctx context.Context, commentID, userID
 	return r.db.WithContext(ctx).Delete(&comment).Error
 }
 
-func (r *CommentRepository) ListByPostSlug(ctx context.Context, postSlug string) ([]models2.Comment, error) {
+func (r *CommentRepository) ListByPostSlug(ctx context.Context, postSlug string) ([]models.Comment, error) {
 	postID, err := r.postIDBySlug(ctx, postSlug)
 	if err != nil {
 		return nil, err
 	}
 
-	var comments []models2.Comment
+	var comments []models.Comment
 	if err := r.db.WithContext(ctx).Where("post_id = ?", postID).Order("created_at asc").Find(&comments).Error; err != nil {
 		return nil, err
 	}

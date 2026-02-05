@@ -3,6 +3,7 @@ package repositories
 import (
 	"context"
 	"go_blog/internal/models"
+	"time"
 
 	"gorm.io/gorm"
 )
@@ -44,4 +45,10 @@ func (r *RefreshTokenRepository) DeleteAllForUser(ctx context.Context, tx *gorm.
 		db = tx
 	}
 	return db.WithContext(ctx).Where("user_id = ?", userID).Delete(&models.RefreshToken{}).Error
+}
+
+// CleanupOldTokens - фоновая задача
+func (r *RefreshTokenRepository) CleanupOldTokens(ctx context.Context) error {
+	return r.db.WithContext(ctx).Where("expires_at < ?", time.Now()).
+		Delete(&models.RefreshToken{}).Error
 }

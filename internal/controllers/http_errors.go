@@ -15,7 +15,7 @@ func respondServiceError(c *gin.Context, err error) bool {
 	switch {
 	case errors.Is(err, services.ErrInvalidCredentials):
 		utils.RespondError(c, http.StatusUnauthorized, "invalid credentials")
-	case errors.Is(err, services.ErrInvalidRefresh):
+	case errors.Is(err, services.ErrInvalidToken):
 		utils.RespondError(c, http.StatusUnauthorized, "invalid refresh token")
 	case errors.Is(err, repositories.ErrUserExists):
 		utils.RespondError(c, http.StatusConflict, "user already exists")

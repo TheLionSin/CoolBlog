@@ -7,6 +7,7 @@ import (
 type RefreshToken struct {
 	ID        uint      `gorm:"primary_key"`
 	UserID    uint      `gorm:"index"`
+	User      User      `gorm:"foreignKey:UserID"`
 	TokenHash string    `gorm:"uniqueIndex;size:64;not null"`
 	CreatedAt time.Time `gorm:"index"`
 	ExpiresAt time.Time `gorm:"index"`
