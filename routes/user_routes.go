@@ -9,8 +9,12 @@ import (
 )
 
 func RegisterUserRoutes(r *gin.Engine, userService *services.UserService) {
-	protected := r.Group("/user")
+
+	userController := controllers.NewUserController(userService)
+
+	protected := r.Group("/users")
 	protected.Use(middleware.RequireAuth())
 
-	protected.GET("/me", controllers.GetCurrentUser(userService))
+	protected.GET("/me", userController.GetMe)    // Получить профиль
+	protected.PUT("/me", userController.UpdateMe) // Обновить профиль
 }
