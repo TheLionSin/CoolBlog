@@ -4,19 +4,17 @@
     <option name="autoReloadType" value="ALL" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="aaa25540-7e3c-4461-a4ac-ce728ffcdf4f" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/internal/services/comment_service.go" afterDir="false" />
+    <list default="true" id="31ba28d1-ac7b-4fd9-84eb-5eca989c91fd" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/internal/events/like_event.go" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/internal/services/like_service.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/cmd/api/main.go" beforeDir="false" afterPath="$PROJECT_DIR$/cmd/api/main.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/cmd/consumer/main.go" beforeDir="false" afterPath="$PROJECT_DIR$/cmd/consumer/main.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/docker-compose.kafka.yml" beforeDir="false" afterPath="$PROJECT_DIR$/docker-compose.kafka.yml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/internal/controllers/comments_controller.go" beforeDir="false" afterPath="$PROJECT_DIR$/internal/controllers/comments_controller.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/internal/events/comment_events.go" beforeDir="false" afterPath="$PROJECT_DIR$/internal/events/comment_events.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/internal/repositories/comment_repository.go" beforeDir="false" afterPath="$PROJECT_DIR$/internal/repositories/comment_repository.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/routes/auth_routes.go" beforeDir="false" afterPath="$PROJECT_DIR$/internal/routes/auth_routes.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/routes/post_routes.go" beforeDir="false" afterPath="$PROJECT_DIR$/internal/routes/post_routes.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/routes/routes.go" beforeDir="false" afterPath="$PROJECT_DIR$/internal/routes/routes.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/routes/user_routes.go" beforeDir="false" afterPath="$PROJECT_DIR$/internal/routes/user_routes.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/controllers/likes_controller.go" beforeDir="false" afterPath="$PROJECT_DIR$/internal/controllers/likes_controller.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/repositories/likes_repository.go" beforeDir="false" afterPath="$PROJECT_DIR$/internal/repositories/likes_repository.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/routes/post_routes.go" beforeDir="false" afterPath="$PROJECT_DIR$/internal/routes/post_routes.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/routes/routes.go" beforeDir="false" afterPath="$PROJECT_DIR$/internal/routes/routes.go" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -34,27 +32,23 @@
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
-  <component name="GitHubPullRequestSearchHistory">{
-  &quot;lastFilter&quot;: {
-    &quot;state&quot;: &quot;OPEN&quot;,
-    &quot;assignee&quot;: &quot;TheLionSin&quot;
+  <component name="GitHubPullRequestSearchHistory"><![CDATA[{
+  "lastFilter": {
+    "state": "OPEN",
+    "assignee": "TheLionSin"
   }
-}</component>
-  <component name="GithubPullRequestsUISettings">{
-  &quot;selectedUrlAndAccountId&quot;: {
-    &quot;url&quot;: &quot;https://github.com/TheLionSin/CoolBlog.git&quot;,
-    &quot;accountId&quot;: &quot;c96e6dc2-5ce0-4c13-8756-f49ea5ada145&quot;
+}]]></component>
+  <component name="GithubPullRequestsUISettings"><![CDATA[{
+  "selectedUrlAndAccountId": {
+    "url": "https://github.com/TheLionSin/CoolBlog.git",
+    "accountId": "c96e6dc2-5ce0-4c13-8756-f49ea5ada145"
   }
-}</component>
-  <component name="KubernetesApiPersistence">{}</component>
-  <component name="KubernetesApiProvider">{
-  &quot;isMigrated&quot;: true
-}</component>
-  <component name="ProjectColorInfo">{
-  &quot;customColor&quot;: &quot;&quot;,
-  &quot;associatedIndex&quot;: 7
-}</component>
-  <component name="ProjectId" id="38r2JeIf29l2GaD2KTt462KU76v" />
+}]]></component>
+  <component name="ProjectColorInfo"><![CDATA[{
+  "customColor": "",
+  "associatedIndex": 7
+}]]></component>
+  <component name="ProjectId" id="39FmrdnffmLgWiN9tJrl96CPYOb" />
   <component name="ProjectLevelVcsManager">
     <ConfirmationsSetting value="2" id="Add" />
   </component>
@@ -62,60 +56,49 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;DefaultGoTemplateProperty&quot;: &quot;Go File&quot;,
-    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.GoLinterPluginOnboarding&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.GoLinterPluginStorageMigration&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.go.formatter.settings.were.checked&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.go.migrated.go.modules.settings&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.go.modules.go.list.on.any.changes.was.set&quot;: &quot;true&quot;,
-    &quot;SHELLCHECK.PATH&quot;: &quot;C:\\Users\\PC\\AppData\\Roaming\\JetBrains\\GoLand2025.2\\plugins\\Shell Script\\shellcheck.exe&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
-    &quot;go.import.settings.migrated&quot;: &quot;true&quot;,
-    &quot;go.sdk.automatically.set&quot;: &quot;true&quot;,
-    &quot;last_opened_file_path&quot;: &quot;C:/Users/User&quot;,
-    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
-    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
-    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "DefaultGoTemplateProperty": "Go File",
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "Notification.DisplayName-DoNotAsk-Go tools integration notifications": "Go tools integration",
+    "Notification.DoNotAsk-Go tools integration notifications": "true",
+    "RunOnceActivity.GoLinterPluginOnboarding": "true",
+    "RunOnceActivity.GoLinterPluginStorageMigration": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "RunOnceActivity.go.formatter.settings.were.checked": "true",
+    "RunOnceActivity.go.migrated.go.modules.settings": "true",
+    "RunOnceActivity.go.modules.go.list.on.any.changes.was.set": "true",
+    "git-widget-placeholder": "main",
+    "go.import.settings.migrated": "true",
+    "go.sdk.automatically.set": "true",
+    "last_opened_file_path": "C:/Users/PC",
+    "node.js.detected.package.eslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm"
   }
-}</component>
-  <component name="RecentsManager">
-    <key name="MoveFile.RECENT_KEYS">
-      <recent name="C:\Users\User\Desktop\go_blog_kafka\internal" />
-      <recent name="C:\Users\PC\Desktop\golang_blog_kafka\internal" />
-      <recent name="C:\Users\PC\Desktop\golang_blog_kafka\cmd\api" />
-      <recent name="C:\Users\PC\Desktop\golang_blog_kafka\cmd" />
-    </key>
-  </component>
+}]]></component>
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
-        <option value="bundled-gosdk-d297c17c1fbd-85c80fddc9a6-org.jetbrains.plugins.go.sharedIndexes.bundled-GO-243.23654.166" />
-        <option value="bundled-js-predefined-d6986cc7102b-822845ee3bb5-JavaScript-GO-243.23654.166" />
+        <option value="bundled-gosdk-f466f9b0953e-61a6b8fd16fd-org.jetbrains.plugins.go.sharedIndexes.bundled-GO-252.28539.22" />
+        <option value="bundled-js-predefined-d6986cc7102b-a71380e98a7c-JavaScript-GO-252.28539.22" />
       </set>
     </attachedChunks>
   </component>
-  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
   <component name="TaskManager">
     <task active="true" id="Default" summary="Default task">
-      <changelist id="aaa25540-7e3c-4461-a4ac-ce728ffcdf4f" name="Changes" comment="" />
-      <created>1769543300659</created>
+      <changelist id="31ba28d1-ac7b-4fd9-84eb-5eca989c91fd" name="Changes" comment="" />
+      <created>1770300394172</created>
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
-      <updated>1769543300659</updated>
+      <updated>1770300394172</updated>
     </task>
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
-  </component>
-  <component name="UnknownFeatures">
-    <option featureType="com.intellij.fileTypeFactory" implementationName="*.ps1" />
   </component>
   <component name="VgoProject">
     <settings-migrated>true</settings-migrated>

@@ -2,7 +2,6 @@ package routes
 
 import (
 	"go_blog/internal/controllers"
-	"go_blog/internal/repositories"
 	"go_blog/internal/services"
 	"go_blog/middleware"
 
@@ -12,11 +11,12 @@ import (
 func RegisterPostRoutes(r *gin.Engine,
 	postService *services.PostService,
 	commentService *services.CommentService,
-	likeRepo *repositories.LikeRepository) {
+	likeService *services.LikeService) {
 
 	// 1. ИНИЦИАЛИЗАЦИЯ: Создаем экземпляр нашего нового контроллера
 	postController := controllers.NewPostController(postService)
 	commentController := controllers.NewCommentController(commentService)
+	likeController := controllers.NewLikeController(likeService)
 
 	// --- Публичные роуты ---
 
@@ -25,7 +25,7 @@ func RegisterPostRoutes(r *gin.Engine,
 	r.GET("/posts/:slug", postController.Get)
 
 	r.GET("/posts/:slug/comments", commentController.List)
-	r.GET("/posts/:slug/likes", controllers.GetPostLikes(likeRepo))
+	r.GET("/posts/:slug/likes", likeController.GetLikes)
 
 	// --- Приватные роуты ---
 	auth := r.Group("/posts")
@@ -36,9 +36,8 @@ func RegisterPostRoutes(r *gin.Engine,
 	auth.PUT("/:slug", postController.Update)
 	auth.DELETE("/:slug", postController.Delete)
 
-	// Лайки и Комменты: оставляем старый стиль (Factory functions)
-	auth.POST("/:slug/like", controllers.LikePost(likeRepo))
-	auth.DELETE("/:slug/like", controllers.UnlikePost(likeRepo))
+	auth.POST("/:slug/like", likeController.Like)
+	auth.DELETE("/:slug/like", likeController.Unlike)
 
 	auth.POST("/:slug/comments", commentController.Create)
 	auth.DELETE("/comments/:id", commentController.Delete)

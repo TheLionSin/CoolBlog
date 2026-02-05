@@ -3,8 +3,9 @@ package repositories
 import (
 	"context"
 	"errors"
-	models2 "go_blog/internal/models"
+	"go_blog/internal/models"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"gorm.io/gorm"
 )
 
@@ -18,23 +19,15 @@ func NewLikeRepository(db *gorm.DB) *LikeRepository {
 	return &LikeRepository{db: db}
 }
 
-func (r *LikeRepository) postIDBySlug(ctx context.Context, slug string) (uint, error) {
-	var post models2.Post
-	if err := r.db.WithContext(ctx).Where("slug = ? AND is_active = ?", slug, true).First(&post).Error; err != nil {
-		return 0, err
-	}
-	return post.ID, nil
-}
-
-func (r *LikeRepository) Like(ctx context.Context, postSlug string, userID uint) error {
-	postID, err := r.postIDBySlug(ctx, postSlug)
-	if err != nil {
-		return err
-	}
-
-	like := models2.PostLike{PostID: postID, UserID: userID}
-	if err := r.db.WithContext(ctx).Create(&like).Error; err != nil {
+// AddTx - Добавить лайк в транзакции
+func (r *LikeRepository) AddTx(ctx context.Context, tx *gorm.DB, like *models.PostLike) error {
+	if err := tx.WithContext(ctx).Create(like).Error; err != nil {
+		// Обработка уникальности (один юзер - один лайк на пост)
 		if errors.Is(err, gorm.ErrDuplicatedKey) {
+			return ErrAlreadyLiked
+		}
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
 			return ErrAlreadyLiked
 		}
 		return err
@@ -42,25 +35,34 @@ func (r *LikeRepository) Like(ctx context.Context, postSlug string, userID uint)
 	return nil
 }
 
-func (r *LikeRepository) Unlike(ctx context.Context, postSlug string, userID uint) error {
-	postID, err := r.postIDBySlug(ctx, postSlug)
-	if err != nil {
-		return err
-	}
+// RemoveTx - Удалить лайк (Unlike)
+func (r *LikeRepository) RemoveTx(ctx context.Context, tx *gorm.DB, postID, userID uint) error {
+	result := tx.WithContext(ctx).
+		Where("post_id = ? AND user_id = ?", postID, userID).
+		Delete(&models.PostLike{})
 
-	return r.db.WithContext(ctx).Unscoped().Where("post_id = ? AND user_id = ?", postID, userID).Delete(&models2.PostLike{}).Error
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
-func (r *LikeRepository) CountByPostSlug(ctx context.Context, postSlug string) (int64, error) {
-	postID, err := r.postIDBySlug(ctx, postSlug)
-	if err != nil {
-		return 0, err
-	}
-
+func (r *LikeRepository) CountByPostID(ctx context.Context, postID uint) (int64, error) {
 	var count int64
-	if err := r.db.WithContext(ctx).Model(&models2.PostLike{}).Where("post_id = ?", postID).Count(&count).Error; err != nil {
-		return 0, err
-	}
+	err := r.db.WithContext(ctx).Model(&models.PostLike{}).
+		Where("post_id = ?", postID).
+		Count(&count).Error
+	return count, err
+}
 
-	return count, nil
+// HasUserLiked - вспомогательный метод (для фронта: подсвечивать сердечко или нет)
+func (r *LikeRepository) HasUserLiked(ctx context.Context, postID, userID uint) (bool, error) {
+	var count int64
+	err := r.db.WithContext(ctx).Model(&models.PostLike{}).
+		Where("post_id = ? AND user_id = ?", postID, userID).
+		Count(&count).Error
+	return count > 0, err
 }

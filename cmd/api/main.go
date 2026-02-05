@@ -42,8 +42,9 @@ func main() {
 	userService := services.NewUserService(db, userRepo, outboxRepo)
 	postService := services.NewPostService(db, postRepo, outboxRepo)
 	commentService := services.NewCommentService(db, commentRepo, postRepo, outboxRepo)
+	likeService := services.NewLikeService(db, likeRepo, postRepo, outboxRepo)
 
-	r := routes.SetupRoutes(authService, userService, postService, commentService, likeRepo)
+	r := routes.SetupRoutes(authService, userService, postService, commentService, likeService)
 
 	srv := &http.Server{
 		Addr:    ":8080",
