@@ -3,16 +3,16 @@ package repositories
 import (
 	"context"
 	models2 "go_blog/internal/models"
-	"go_blog/testhelpers"
+	testhelpers2 "go_blog/internal/testhelpers"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
 
 func TestPostRepository_GetBySlug_CacheHit(t *testing.T) {
-	db := testhelpers.SetupTestDB(t)
-	tx := testhelpers.BeginTx(t, db)
-	rdb := testhelpers.SetupTestRedis(t)
+	db := testhelpers2.SetupTestDB(t)
+	tx := testhelpers2.BeginTx(t, db)
+	rdb := testhelpers2.SetupTestRedis(t)
 
 	repo := NewPostRepository(tx, rdb)
 
@@ -45,9 +45,9 @@ func TestPostRepository_GetBySlug_CacheHit(t *testing.T) {
 }
 
 func TestPostRepository_GetBySlug_CacheInvalidatedOnUpdate(t *testing.T) {
-	db := testhelpers.SetupTestDB(t)
-	tx := testhelpers.BeginTx(t, db)
-	rdb := testhelpers.SetupTestRedis(t)
+	db := testhelpers2.SetupTestDB(t)
+	tx := testhelpers2.BeginTx(t, db)
+	rdb := testhelpers2.SetupTestRedis(t)
 
 	repo := NewPostRepository(tx, rdb)
 
@@ -81,9 +81,9 @@ func TestPostRepository_GetBySlug_CacheInvalidatedOnUpdate(t *testing.T) {
 }
 
 func TestPostRepository_List_CacheVersioned(t *testing.T) {
-	db := testhelpers.SetupTestDB(t)
-	tx := testhelpers.BeginTx(t, db)
-	rdb := testhelpers.SetupTestRedis(t)
+	db := testhelpers2.SetupTestDB(t)
+	tx := testhelpers2.BeginTx(t, db)
+	rdb := testhelpers2.SetupTestRedis(t)
 
 	repo := NewPostRepository(tx, rdb)
 

@@ -8,7 +8,7 @@ import (
 	"go_blog/internal/dto"
 	"go_blog/internal/services"
 	"go_blog/internal/utils"
-	"go_blog/validators"
+	"go_blog/internal/validators"
 	"net/http"
 )
 

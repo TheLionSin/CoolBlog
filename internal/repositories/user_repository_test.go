@@ -3,7 +3,7 @@ package repositories
 import (
 	"context"
 	"go_blog/internal/models"
-	"go_blog/testhelpers"
+	"go_blog/internal/testhelpers"
 	"testing"
 
 	"github.com/stretchr/testify/require"

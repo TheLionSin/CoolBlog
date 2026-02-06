@@ -4,8 +4,8 @@ import (
 	"context"
 	"go_blog/internal/dto"
 	"go_blog/internal/models"
+	"go_blog/internal/stores"
 	"go_blog/internal/utils"
-	"go_blog/stores"
 	"testing"
 	"time"
 

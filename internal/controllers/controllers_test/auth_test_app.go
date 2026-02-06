@@ -4,8 +4,8 @@ import (
 	"go_blog/internal/controllers"
 	"go_blog/internal/repositories"
 	"go_blog/internal/services"
-	"go_blog/stores"
-	"go_blog/testhelpers"
+	"go_blog/internal/stores"
+	testhelpers2 "go_blog/internal/testhelpers"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -15,8 +15,8 @@ func SetupAuthTestApp(t *testing.T) *gin.Engine {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 
-	db := testhelpers.SetupTestDB(t)
-	rdb := testhelpers.SetupTestRedis(t)
+	db := testhelpers2.SetupTestDB(t)
+	rdb := testhelpers2.SetupTestRedis(t)
 
 	userRepo := repositories.NewUserRepository(db)
 	refreshStore := stores.NewRefreshRedisStore(rdb)

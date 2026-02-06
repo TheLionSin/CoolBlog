@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"go_blog/internal/controllers/controllers_test"
 	"go_blog/internal/dto"
-	"go_blog/testhelpers"
+	"go_blog/internal/testhelpers"
 	"net/http"
 	"testing"
 

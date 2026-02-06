@@ -2,8 +2,8 @@ package middleware_test
 
 import (
 	"go_blog/config"
-	"go_blog/middleware"
-	"go_blog/testhelpers"
+	"go_blog/internal/middleware"
+	testhelpers2 "go_blog/internal/testhelpers"
 	"net/http"
 	"testing"
 	"time"
@@ -26,7 +26,7 @@ func setupRateLimitApp() *gin.Engine {
 }
 
 func TestRateLimit_AllowsThen429(t *testing.T) {
-	rdb := testhelpers.SetupTestRedis(t)
+	rdb := testhelpers2.SetupTestRedis(t)
 
 	prev := config.RDB
 	config.RDB = rdb
@@ -36,16 +36,16 @@ func TestRateLimit_AllowsThen429(t *testing.T) {
 
 	app := setupRateLimitApp()
 
-	req := testhelpers.NewAuthRequest("GET", "/ping", "")
+	req := testhelpers2.NewAuthRequest("GET", "/ping", "")
 	req.RemoteAddr = "127.0.0.1:12345"
 
-	resp := testhelpers.DoRequest(app, req)
+	resp := testhelpers2.DoRequest(app, req)
 	require.Equal(t, http.StatusOK, resp.Code)
 
-	resp = testhelpers.DoRequest(app, req)
+	resp = testhelpers2.DoRequest(app, req)
 	require.Equal(t, http.StatusOK, resp.Code)
 
-	resp = testhelpers.DoRequest(app, req)
+	resp = testhelpers2.DoRequest(app, req)
 	require.Equal(t, http.StatusTooManyRequests, resp.Code)
 
 }
@@ -57,18 +57,18 @@ func TestRateLimit_NoRedis_Allows(t *testing.T) {
 
 	app := setupRateLimitApp()
 
-	req := testhelpers.NewAuthRequest("GET", "/ping", "")
+	req := testhelpers2.NewAuthRequest("GET", "/ping", "")
 	req.RemoteAddr = "127.0.0.1:12345"
 
 	for i := 0; i < 10; i++ {
-		resp := testhelpers.DoRequest(app, req)
+		resp := testhelpers2.DoRequest(app, req)
 		require.Equal(t, http.StatusOK, resp.Code)
 	}
 
 }
 
 func TestRateLimit_ResetsAfterWindow(t *testing.T) {
-	rdb := testhelpers.SetupTestRedis(t)
+	rdb := testhelpers2.SetupTestRedis(t)
 
 	prev := config.RDB
 	config.RDB = rdb
@@ -83,21 +83,21 @@ func TestRateLimit_ResetsAfterWindow(t *testing.T) {
 		c.Status(http.StatusOK)
 	})
 
-	req := testhelpers.NewAuthRequest("GET", "/ping", "")
+	req := testhelpers2.NewAuthRequest("GET", "/ping", "")
 	req.RemoteAddr = "127.0.0.1:12345"
 
 	// 1-й — OK
-	resp := testhelpers.DoRequest(r, req)
+	resp := testhelpers2.DoRequest(r, req)
 	require.Equal(t, http.StatusOK, resp.Code)
 
 	// 2-й — лимит
-	resp = testhelpers.DoRequest(r, req)
+	resp = testhelpers2.DoRequest(r, req)
 	require.Equal(t, http.StatusTooManyRequests, resp.Code)
 
 	// ждём, пока TTL истечёт
 	time.Sleep(2 * time.Second)
 
 	// снова OK
-	resp = testhelpers.DoRequest(r, req)
+	resp = testhelpers2.DoRequest(r, req)
 	require.Equal(t, http.StatusOK, resp.Code)
 }
