@@ -13,13 +13,13 @@ const (
 type OutboxEvent struct {
 	ID            uint         `gorm:"primaryKey"`
 	EventID       string       `gorm:"size:36;uniqueIndex;not null"`
-	Topic         string       `gorm:"size:200;not null"`   // blog.events
-	EventType     string       `gorm:"size:50;not null"`    // PostCreated
-	AggregateType string       `gorm:"size:50;not null"`    // post
-	AggregateID   string       `gorm:"size:50;not null"`    // postID
-	ActorUserID   string       `gorm:"size:50"`             // кто сделал
-	Payload       string       `gorm:"type:jsonb;not null"` // JSON строкой
-	OccurredAt    time.Time    `gorm:"not null"`
+	Topic         string       `gorm:"size:200;not null"`      // blog...
+	EventType     string       `gorm:"size:50;not null"`       // PostCreated
+	AggregateType string       `gorm:"size:50;not null"`       // post
+	AggregateID   string       `gorm:"size:50;not null"`       // postID
+	ActorUserID   string       `gorm:"size:50"`                // кто сделал
+	Payload       string       `gorm:"type:jsonb;not null"`    // JSON строкой
+	OccurredAt    time.Time    `gorm:"not null"`               // произошло
 	Status        OutboxStatus `gorm:"size:10;not null;index"` //NEW SENT
 	Attempts      int          `gorm:"not null;default:0"`     //ПОПЫТКИ
 	NextAttemptAt *time.Time   `gorm:"index"`

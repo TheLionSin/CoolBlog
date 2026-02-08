@@ -12,10 +12,10 @@ import (
 	"log"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/segmentio/kafka-go"
 )
 
@@ -51,7 +51,6 @@ func main() {
 				log.Println("consumer shutdown: context canceled")
 				return
 			}
-
 			log.Printf("fetch error: %v", err)
 			metrics.ConsumerErrors.Add(1)
 			continue
@@ -75,25 +74,22 @@ func main() {
 		}
 
 		if err := auditRepo.Create(ctx, &logEntry); err != nil {
+			var pgErr *pgconn.PgError
 			// Проверяем: это дубликат?
-			// (Для простоты проверяем текст, по-хорошему надо проверять код ошибки Postgres 23505)
-			isDuplicate := false
-			// В GORM/Postgres ошибка часто содержит этот текст
-			if strings.Contains(err.Error(), "duplicate key") || strings.Contains(err.Error(), "unique constraint") {
-				isDuplicate = true
-			}
-
-			if isDuplicate {
-				log.Printf("Event %s already processed, skipping", env.EventID)
-				// Мы НЕ делаем continue, мы идем дальше к коммиту!
+			if errors.As(err, &pgErr) && pgErr.Code == "23505" { //Либо так if errors.Is(err, gorm.ErrDuplicatedKey)
+				log.Printf("Duplicate event %s, skipping", env.EventID)
+				// ВНИМАНИЕ: Здесь нет 'continue' и нет 'return'.
+				// Мы просто выходим из if/else и идем вниз -> к reader.CommitMessages
+				// Это и есть Idempotency (Идемпотентность).
 			} else {
 				// Реальная ошибка (нет подключения к БД и т.д.)
 				// Вот тут мы не можем коммитить, надо ретраить или падать
 				log.Println("failed to save audit log:", err)
 				metrics.ConsumerErrors.Add(1)
 
+				// Ждем и пробуем снова (Retry Policy)
 				time.Sleep(time.Second)
-				continue
+				continue // Возвращаемся в начало цикла, НЕ делаем коммит
 			}
 		}
 

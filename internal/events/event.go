@@ -9,6 +9,23 @@ import (
 	"github.com/google/uuid"
 )
 
+type Envelope struct {
+	EventID    string    `json:"event_id"`   //UUID
+	EventType  string    `json:"event_type"` //PostCreated,...
+	OccurredAt time.Time `json:"occurred_at"`
+
+	// для маршрутизации/упорядочивания
+	AggregateType string `json:"aggregate_type"` //"post"
+	AggregateID   string `json:"aggregate_id"`   //postID
+
+	// полезно для трассировки
+	ActorUserID   string `json:"actor_user_id,omitempty"`
+	CorrelationID string `json:"correlation_id,omitempty"`
+
+	Version int             `json:"version"`
+	Payload json.RawMessage `json:"payload"`
+}
+
 func NewPostCreatedEvent(post *models.Post) (*models.OutboxEvent, error) {
 	payload := PostCreatedPayload{
 		PostID: utils.UintToString(post.ID),
@@ -32,23 +49,6 @@ func NewPostCreatedEvent(post *models.Post) (*models.OutboxEvent, error) {
 		OccurredAt:    time.Now().UTC(),
 		Status:        models.OutboxNew,
 	}, nil
-}
-
-type Envelope struct {
-	EventID    string    `json:"event_id"`   //UUID
-	EventType  string    `json:"event_type"` //PostCreated,...
-	OccurredAt time.Time `json:"occurred_at"`
-
-	// для маршрутизации/упорядочивания
-	AggregateType string `json:"aggregate_type"` //"post"
-	AggregateID   string `json:"aggregate_id"`   //postID
-
-	// полезно для трассировки
-	ActorUserID   string `json:"actor_user_id,omitempty"`
-	CorrelationID string `json:"correlation_id,omitempty"`
-
-	Version int             `json:"version"`
-	Payload json.RawMessage `json:"payload"`
 }
 
 func NewPostUpdatedEvent(post *models.Post) (*models.OutboxEvent, error) {
@@ -80,9 +80,7 @@ func NewPostUpdatedEvent(post *models.Post) (*models.OutboxEvent, error) {
 }
 
 func NewPostDeletedEvent(id, uid uint) (*models.OutboxEvent, error) {
-	payload := map[string]string{
-		"post_id": utils.UintToString(id),
-	}
+	payload := PostDeletedPayload{PostID: utils.UintToString(id)}
 
 	payloadBytes, err := json.Marshal(payload)
 	if err != nil {
