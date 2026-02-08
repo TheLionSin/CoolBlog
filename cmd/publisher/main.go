@@ -23,9 +23,9 @@ const (
 )
 
 func main() {
-	config.ConnectDB()
+	db, _ := config.ConnectDB()
 
-	outboxRepo := repositories.NewOutboxRepository(config.DB)
+	outboxRepo := repositories.NewOutboxRepository(db)
 
 	brokers := os.Getenv("KAFKA_BROKERS")
 	if brokers == "" {

@@ -20,9 +20,7 @@ import (
 )
 
 func main() {
-	config.ConnectDB()
-
-	db := config.DB
+	db, _ := config.ConnectDB()
 
 	auditRepo := repositories.NewAuditLogRepository(db)
 

@@ -12,8 +12,8 @@ func main() {
 	limit := flag.Int("limit", 50, "how many DEAD events to reset to NEW")
 	flag.Parse()
 
-	config.ConnectDB()
-	repo := repositories.NewOutboxRepository(config.DB)
+	db, err := config.ConnectDB()
+	repo := repositories.NewOutboxRepository(db)
 
 	ctx := context.Background()
 

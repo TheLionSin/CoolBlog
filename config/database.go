@@ -10,8 +10,6 @@ import (
 	"gorm.io/gorm"
 )
 
-var DB *gorm.DB
-
 func ConnectDB() (*gorm.DB, error) {
 
 	// В Docker переменные приходят из env_file / окружения.
@@ -33,8 +31,6 @@ func ConnectDB() (*gorm.DB, error) {
 	if err != nil {
 		log.Fatal("Failed to connect to database: ", err)
 	}
-
-	DB = db
 
 	fmt.Println("Successfully connected to database")
 

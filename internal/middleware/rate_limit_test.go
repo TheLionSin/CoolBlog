@@ -1,6 +1,7 @@
 package middleware_test
 
 import (
+	"fmt"
 	"go_blog/config"
 	"go_blog/internal/middleware"
 	testhelpers2 "go_blog/internal/testhelpers"
@@ -28,9 +29,14 @@ func setupRateLimitApp() *gin.Engine {
 func TestRateLimit_AllowsThen429(t *testing.T) {
 	rdb := testhelpers2.SetupTestRedis(t)
 
-	prev := config.RDB
-	config.RDB = rdb
-	t.Cleanup(func() { config.RDB = prev })
+	redisClient, err := config.InitRedis()
+	if err != nil {
+		fmt.Printf("Failed to connect to Redis: %v", err)
+	}
+
+	prev := redisClient
+	redisClient = rdb
+	t.Cleanup(func() { redisClient = prev })
 
 	require.NoError(t, rdb.FlushDB(t.Context()).Err())
 
@@ -51,9 +57,13 @@ func TestRateLimit_AllowsThen429(t *testing.T) {
 }
 
 func TestRateLimit_NoRedis_Allows(t *testing.T) {
-	prev := config.RDB
-	config.RDB = nil
-	t.Cleanup(func() { config.RDB = prev })
+	redisClient, err := config.InitRedis()
+	if err != nil {
+		fmt.Printf("Failed to connect to Redis: %v", err)
+	}
+	prev := redisClient
+	redisClient = nil
+	t.Cleanup(func() { redisClient = prev })
 
 	app := setupRateLimitApp()
 
@@ -70,9 +80,14 @@ func TestRateLimit_NoRedis_Allows(t *testing.T) {
 func TestRateLimit_ResetsAfterWindow(t *testing.T) {
 	rdb := testhelpers2.SetupTestRedis(t)
 
-	prev := config.RDB
-	config.RDB = rdb
-	t.Cleanup(func() { config.RDB = prev })
+	redisClient, err := config.InitRedis()
+	if err != nil {
+		fmt.Printf("Failed to connect to Redis: %v", err)
+	}
+
+	prev := redisClient
+	redisClient = rdb
+	t.Cleanup(func() { redisClient = prev })
 
 	require.NoError(t, rdb.FlushDB(t.Context()).Err())
 

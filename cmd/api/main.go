@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"go_blog/config"
 	"go_blog/internal/models"
 	"go_blog/internal/repositories"
@@ -25,13 +26,16 @@ func main() {
 		log.Fatalf("Failed to connect to DB: %v", err)
 	}
 
-	rdb := config.InitRedis()
+	redisClient, err := config.InitRedis()
+	if err != nil {
+		fmt.Printf("Failed to connect to Redis: %v", err)
+	}
 
-	config.DB.AutoMigrate(&models.User{}, &models.Post{}, &models.RefreshToken{}, &models.PostLike{}, &models.Comment{}, &models.AuditLog{}, &models.OutboxEvent{})
+	db.AutoMigrate(&models.User{}, &models.Post{}, &models.RefreshToken{}, &models.PostLike{}, &models.Comment{}, &models.AuditLog{}, &models.OutboxEvent{})
 
 	//Repositories
 	userRepo := repositories.NewUserRepository(db)
-	postRepo := repositories.NewPostRepository(db, rdb)
+	postRepo := repositories.NewPostRepository(db, redisClient)
 	commentRepo := repositories.NewCommentRepository(db)
 	likeRepo := repositories.NewLikeRepository(db)
 	outboxRepo := repositories.NewOutboxRepository(db)

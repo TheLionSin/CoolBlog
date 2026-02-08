@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"go_blog/internal/models"
-	utils2 "go_blog/internal/utils"
+	"go_blog/internal/utils"
 	"strings"
 	"time"
 
@@ -41,7 +41,7 @@ func generateUniqueSlugWithDB(
 	title string,
 ) (string, error) {
 
-	base := utils2.Slugify(title)
+	base := utils.Slugify(title)
 	slug := base
 
 	for i := 1; ; i++ {
@@ -74,7 +74,7 @@ func (r *PostRepository) listVersion(ctx context.Context) int64 {
 		return 1
 	}
 
-	key := utils2.PostsListVersionKey()
+	key := utils.PostsListVersionKey()
 
 	v, err := r.rdb.Get(ctx, key).Int64()
 	if err == nil {
@@ -89,7 +89,7 @@ func (r *PostRepository) bumpListVersion(ctx context.Context) {
 	if r.rdb == nil {
 		return
 	}
-	_ = r.rdb.Incr(ctx, utils2.PostsListVersionKey()).Err()
+	_ = r.rdb.Incr(ctx, utils.PostsListVersionKey()).Err()
 }
 
 func (r *PostRepository) GetBySlug(ctx context.Context, slug string) (*models.Post, error) {
@@ -153,7 +153,7 @@ func (r *PostRepository) List(ctx context.Context, page, limit int, q string) ([
 	}
 
 	var posts []models.Post
-	offset := utils2.Offset(page, limit)
+	offset := utils.Offset(page, limit)
 	if err := db.
 		Select("*").
 		Order("created_at desc").
@@ -199,7 +199,7 @@ func (r *PostRepository) Create(ctx context.Context, uid uint, title, text strin
 }
 
 func (r *PostRepository) CreateTx(ctx context.Context, tx *gorm.DB, uid uint, title, text string) (*models.Post, error) {
-	baseSlug := utils2.Slugify(title)
+	baseSlug := utils.Slugify(title)
 	slug := baseSlug
 
 	// Пытаемся вставить в цикле

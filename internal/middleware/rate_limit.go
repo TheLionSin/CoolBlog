@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"fmt"
 	"go_blog/config"
 	"go_blog/internal/utils"
 	"net/http"
@@ -10,8 +11,14 @@ import (
 )
 
 func RateLimit(limit int, window time.Duration) gin.HandlerFunc {
+
+	redisClient, err := config.InitRedis()
+	if err != nil {
+		fmt.Printf("Failed to connect to Redis: %v", err)
+	}
+
 	return func(c *gin.Context) {
-		if config.RDB == nil {
+		if redisClient == nil {
 			c.Next()
 			return
 		}
@@ -20,14 +27,14 @@ func RateLimit(limit int, window time.Duration) gin.HandlerFunc {
 		ip := c.ClientIP()
 		key := "rl:" + ip + ":" + c.FullPath()
 
-		count, err := config.RDB.Incr(ctx, key).Result()
+		count, err := redisClient.Incr(ctx, key).Result()
 		if err != nil {
 			c.Next()
 			return
 		}
 
 		if count == 1 {
-			_ = config.RDB.Expire(ctx, key, window).Err()
+			_ = redisClient.Expire(ctx, key, window).Err()
 		}
 
 		if count > int64(limit) {

@@ -3,9 +3,8 @@ package services
 import (
 	"context"
 	"errors"
-	"fmt"
 	"go_blog/internal/events"
-	models2 "go_blog/internal/models"
+	"go_blog/internal/models"
 	"go_blog/internal/repositories"
 	"strings"
 
@@ -13,11 +12,11 @@ import (
 )
 
 type PostRepo interface {
-	Create(ctx context.Context, uid uint, title, text string) (*models2.Post, error)
-	UpdateOwnedBy(ctx context.Context, slug string, uid uint, updates map[string]any) (*models2.Post, error)
+	Create(ctx context.Context, uid uint, title, text string) (*models.Post, error)
+	UpdateOwnedBy(ctx context.Context, slug string, uid uint, updates map[string]any) (*models.Post, error)
 	DeleteOwnedBy(ctx context.Context, slug string, uid uint) error
-	GetBySlug(ctx context.Context, slug string) (*models2.Post, error)
-	List(ctx context.Context, page, limit int, q string) ([]models2.Post, int64, error)
+	GetBySlug(ctx context.Context, slug string) (*models.Post, error)
+	List(ctx context.Context, page, limit int, q string) ([]models.Post, int64, error)
 }
 
 type PostService struct {
@@ -30,11 +29,11 @@ func NewPostService(db *gorm.DB, repo *repositories.PostRepository, outbox *repo
 	return &PostService{db: db, repo: repo, outbox: outbox}
 }
 
-func (s *PostService) Create(ctx context.Context, uid uint, title, text string) (*models2.Post, error) {
+func (s *PostService) Create(ctx context.Context, uid uint, title, text string) (*models.Post, error) {
 	title = strings.TrimSpace(title)
 	text = strings.TrimSpace(text)
 
-	var created *models2.Post
+	var created *models.Post
 
 	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		// 1. Создаем пост в БД
@@ -63,7 +62,7 @@ func (s *PostService) Create(ctx context.Context, uid uint, title, text string) 
 
 }
 
-func (s *PostService) Update(ctx context.Context, slug string, uid uint, title, text *string) (*models2.Post, error) {
+func (s *PostService) Update(ctx context.Context, slug string, uid uint, title, text *string) (*models.Post, error) {
 	updates := map[string]any{}
 
 	if title != nil {
@@ -77,7 +76,7 @@ func (s *PostService) Update(ctx context.Context, slug string, uid uint, title, 
 		return nil, ErrNoFieldsToUpdate
 	}
 
-	var updatedPost *models2.Post
+	var updatedPost *models.Post
 
 	// START TRANSACTION
 	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
@@ -124,7 +123,7 @@ func (s *PostService) Delete(ctx context.Context, slug string, uid uint) error {
 	})
 }
 
-func (s *PostService) Get(ctx context.Context, slug string) (*models2.Post, error) {
+func (s *PostService) Get(ctx context.Context, slug string) (*models.Post, error) {
 	post, err := s.repo.GetBySlug(ctx, slug)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -135,11 +134,6 @@ func (s *PostService) Get(ctx context.Context, slug string) (*models2.Post, erro
 	return post, nil
 }
 
-func (s *PostService) List(ctx context.Context, page, limit int, q string) ([]models2.Post, int64, error) {
+func (s *PostService) List(ctx context.Context, page, limit int, q string) ([]models.Post, int64, error) {
 	return s.repo.List(ctx, page, limit, q)
-}
-
-func uintToString(v uint) string {
-	// не идеально, но ок для старта. Потом приведём к нормальному виду под твои модели/ID
-	return fmt.Sprint(v)
 }
