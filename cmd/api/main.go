@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"errors"
-	"fmt"
 	"go_blog/config"
 	"go_blog/internal/models"
 	"go_blog/internal/repositories"
@@ -28,7 +27,8 @@ func main() {
 
 	redisClient, err := config.InitRedis()
 	if err != nil {
-		fmt.Printf("Failed to connect to Redis: %v", err)
+		// Не убиваем приложение, просто предупреждаем админа
+		log.Printf("WARNING: Failed to connect to Redis: %v. Rate limiting disabled.", err)
 	}
 
 	db.AutoMigrate(&models.User{}, &models.Post{}, &models.RefreshToken{}, &models.PostLike{}, &models.Comment{}, &models.AuditLog{}, &models.OutboxEvent{})
@@ -48,7 +48,7 @@ func main() {
 	commentService := services.NewCommentService(db, commentRepo, postRepo, outboxRepo)
 	likeService := services.NewLikeService(db, likeRepo, postRepo, outboxRepo)
 
-	r := routes.SetupRoutes(authService, userService, postService, commentService, likeService)
+	r := routes.SetupRoutes(authService, userService, postService, commentService, likeService, redisClient)
 
 	srv := &http.Server{
 		Addr:    ":8080",
