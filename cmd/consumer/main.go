@@ -4,12 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go_blog/config"
 	"go_blog/internal/events"
 	"go_blog/internal/metrics"
 	"go_blog/internal/models"
 	"go_blog/internal/repositories"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -30,6 +32,8 @@ func main() {
 	}
 	log.Println("KAFKA_BROKERS =", brokers)
 
+	metrics.Init()
+
 	reader := kafka.NewReader(kafka.ReaderConfig{
 		Brokers:     []string{brokers},
 		GroupTopics: []string{"blog.events", "blog.users", "blog.events.dlq", "blog.comments", "blog.likes"},
@@ -43,6 +47,17 @@ func main() {
 
 	log.Println("audit consumer started")
 
+	go func() {
+		http.Handle("/metrics", promhttp.Handler())
+		// API: 8080
+		// Publisher: 9091 (например)
+		// Consumer: 9092
+		log.Println("Metrics server started on :9092")
+		if err := http.ListenAndServe(":9092", nil); err != nil {
+			log.Println("Metrics server failed:", err)
+		}
+	}()
+
 	for {
 		log.Println("waiting message...")
 		msg, err := reader.FetchMessage(ctx)
@@ -52,14 +67,14 @@ func main() {
 				return
 			}
 			log.Printf("fetch error: %v", err)
-			metrics.ConsumerErrors.Add(1)
+			metrics.ConsumerErrors.Inc()
 			continue
 		}
 
 		var env events.Envelope
 		if err := json.Unmarshal(msg.Value, &env); err != nil {
 			log.Println("invalid event:", err)
-			metrics.ConsumerErrors.Add(1)
+			metrics.ConsumerErrors.Inc()
 			continue
 		}
 
@@ -85,7 +100,7 @@ func main() {
 				// Реальная ошибка (нет подключения к БД и т.д.)
 				// Вот тут мы не можем коммитить, надо ретраить или падать
 				log.Println("failed to save audit log:", err)
-				metrics.ConsumerErrors.Add(1)
+				metrics.ConsumerErrors.Inc()
 
 				// Ждем и пробуем снова (Retry Policy)
 				time.Sleep(time.Second)
@@ -108,12 +123,12 @@ func main() {
 
 		if err != nil {
 			log.Println("failed to commit message:", err)
-			metrics.ConsumerErrors.Add(1)
+			metrics.ConsumerErrors.Inc()
 			continue
 		}
 
 		// Только после успешного коммита считаем сообщение полностью обработанным
-		metrics.ConsumerProcessed.Add(1)
+		metrics.ConsumerProcessed.Inc()
 
 		log.Printf("CONSUMER processed event_id=%s offset=%d", env.EventID, msg.Offset)
 

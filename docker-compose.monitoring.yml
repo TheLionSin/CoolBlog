@@ -1,0 +1,21 @@
+services:
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: go_blog_prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml # Прокидываем наш конфиг внутрь
+    ports:
+      - "9090:9090" #Веб-интерфейс
+    depends_on:
+      - api #Ждем запуска сервисов
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: go_blog_grafana
+    ports:
+      - "3000:3000" #Веб интерфейс
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    depends_on:
+      - prometheus

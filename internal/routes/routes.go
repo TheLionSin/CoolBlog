@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go_blog/internal/services"
 
 	"github.com/gin-gonic/gin"
@@ -12,11 +13,7 @@ func SetupRoutes(authService *services.AuthService, userService *services.UserSe
 	likeService *services.LikeService, redisClient *redis.Client) *gin.Engine {
 	r := gin.Default()
 
-	r.GET("/health", func(c *gin.Context) {
-		c.JSON(200, gin.H{
-			"status": "ok",
-		})
-	})
+	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	RegisterAuthRoutes(r, authService, redisClient)
 	RegisterUserRoutes(r, userService)

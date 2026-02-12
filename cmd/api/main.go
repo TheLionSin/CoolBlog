@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"go_blog/config"
+	"go_blog/internal/metrics"
 	"go_blog/internal/models"
 	"go_blog/internal/repositories"
 	"go_blog/internal/routes"
@@ -17,6 +18,9 @@ import (
 )
 
 func main() {
+
+	// САМОЕ ПЕРВОЕ - Инициализация метрик
+	metrics.Init()
 
 	// 1. Инициализация конфига
 

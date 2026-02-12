@@ -4,11 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go_blog/config"
 	"go_blog/internal/events"
 	"go_blog/internal/metrics"
 	"go_blog/internal/repositories"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -32,6 +34,8 @@ func main() {
 		brokers = "localhost:9092"
 	}
 
+	metrics.Init()
+
 	writer := &kafka.Writer{
 		Addr: kafka.TCP(brokers),
 		//Topic:        TopicEvents,
@@ -49,6 +53,16 @@ func main() {
 	ticker := time.NewTicker(500 * time.Millisecond)
 	defer ticker.Stop()
 
+	go func() {
+		http.Handle("/metrics", promhttp.Handler())
+		// API: 8080
+		// Publisher: 9091 (например)
+		// Consumer: 9092
+		log.Println("Metrics server started on :9091")
+		if err := http.ListenAndServe(":9091", nil); err != nil {
+			log.Println("Metrics server failed:", err)
+		}
+	}()
 	for {
 		select {
 		case <-ctx.Done(): // ctx - это signal context
@@ -72,10 +86,11 @@ func main() {
 				continue
 			}
 			if len(items) == 0 {
+				metrics.OutboxFetched.WithLabelValues("empty").Inc()
 				continue
 			}
 
-			metrics.OutboxFetched.Add(1)
+			metrics.OutboxFetched.WithLabelValues("ok").Inc()
 
 			for _, it := range items {
 				// 1) Собираем envelope
@@ -95,7 +110,7 @@ func main() {
 				if err != nil {
 					log.Printf("OUTBOX FAIL id=%d event_id=%s stage=marshal err=%v", it.ID, it.EventID, err)
 
-					metrics.OutboxRetry.Add(1)
+					metrics.OutboxRetry.Inc()
 
 					_, _ = outboxRepo.MarkFailed(ctx, it.ID, "marshal envelope: "+err.Error())
 					continue
@@ -129,7 +144,7 @@ func main() {
 				if err != nil {
 					log.Printf("OUTBOX FAIL id=%d event_id=%s stage=kafka_publish topic=%s err=%v", it.ID, it.EventID, it.Topic, err)
 
-					metrics.OutboxRetry.Add(1)
+					metrics.OutboxRetry.Inc()
 
 					failCtx, cancelFail := context.WithTimeout(context.Background(), 5*time.Second)
 					_, _ = outboxRepo.MarkFailed(failCtx, it.ID, "kafka publish: "+err.Error())
@@ -144,7 +159,7 @@ func main() {
 				}
 				cancelDb()
 
-				metrics.OutboxSent.Add(1)
+				metrics.OutboxSent.Inc()
 
 				lag := time.Since(it.OccurredAt)
 
