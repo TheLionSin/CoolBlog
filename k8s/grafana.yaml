@@ -17,7 +17,7 @@ spec:
           image: grafana/grafana:latest
           ports:
             - containerPort: 3000
-          env:
+          env: # Base
             - name: GF_SECURITY_ADMIN_USER
               value: "admin"
             - name: GF_SECURITY_ADMIN_PASSWORD

@@ -16,8 +16,8 @@ spec:
         - name: publisher
           image: go_blog_app:k8s # Тот же образ!
           imagePullPolicy: Never
-          # ВАЖНО: Переопределяем команду!
-          # В Dockerfile у тебя они лежат в /usr/local/bin, который есть в PATH.
+          # ВАЖНО: Переопределяем команду
+          # В Dockerfile они лежат в /usr/local/bin, который есть в PATH.
           # Поэтому просто пишем имя бинарника:
           command: ["publisher"]
 

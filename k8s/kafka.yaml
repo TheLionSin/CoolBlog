@@ -29,7 +29,7 @@ spec:
   selector:
     app: kafka
 ---
-# 3. STATEFULSET (Сама Кафка на официальном образе)
+# 3. Statefulset (Сама Кафка на официальном образе)
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:

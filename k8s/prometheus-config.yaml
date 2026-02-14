@@ -11,8 +11,8 @@ data:
       - job_name: 'go_blog_services'
         static_configs:
           - targets:
-              # Имя сервиса API (проверь kubectl get svc, обычно go-blog-app или как в app.yaml)
+              # Имя сервиса API (проверить kubectl get svc, обычно go-blog-app или как в app.yaml)
               - 'go-blog-app:8080'
-              # Имена новых сервисов, что мы создали выше
+              # Имена новых сервисов, что создали выше
               - 'publisher-metrics-service:9091'
               - 'consumer-metrics-service:9092'

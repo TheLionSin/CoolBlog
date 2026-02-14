@@ -33,7 +33,7 @@ spec:
 
             # --- REDIS (ИСПРАВЛЕНО) ---
             - name: REDIS_ADDR
-              value: "redis-service:6379" # <-- Указываем имя сервиса!  <-- Формат host:port
+              value: "redis-service:6379" # <- Указываем имя сервиса!  <-- Формат host:port
             - name: REDIS_PASSWORD
               value: ""
 

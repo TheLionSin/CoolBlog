@@ -24,7 +24,7 @@ spec:
       volumes:
         - name: config-volume
           configMap:
-            name: prometheus-config # <-- Берем из ConfigMap
+            name: prometheus-config # <- Берем из ConfigMap
 ---
 apiVersion: v1
 kind: Service

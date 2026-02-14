@@ -25,7 +25,7 @@ spec:
   template:
     metadata:
       labels:
-        app: postgres # <-- Та самая метка для Сервиса
+        app: postgres # <- Та самая метка для Сервиса
     spec:
       containers:
         - name: postgres

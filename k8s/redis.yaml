@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: redis-service # <-- Имя, по которому Go будет искать Redis
+  name: redis-service # <- Имя, по которому Go будет искать Redis
 spec:
   ports:
     - port: 6379

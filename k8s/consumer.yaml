@@ -16,7 +16,7 @@ spec:
         - name: consumer
           image: go_blog_app:k8s
           imagePullPolicy: Never
-          command: ["consumer"] # <-- Запускаем бинарник consumer
+          command: ["consumer"] # <- Запускаем бинарник consumer
 
           env:
             # Копипаст переменных (в реальном K8s это делают через ConfigMap, но пока так)

@@ -1,4 +1,4 @@
-# Сервис для метрик Паблишера
+# Сервис для метрик Publisher
 apiVersion: v1
 kind: Service
 metadata:
@@ -10,9 +10,9 @@ spec:
     - name: metrics
       protocol: TCP
       port: 9091
-      targetPort: 9091 # Порт внутри контейнера (как у тебя в коде)
+      targetPort: 9091 # Порт внутри контейнера (как в коде)
 ---
-# Сервис для метрик Консьюмера
+# Сервис для метрик Consumer
 apiVersion: v1
 kind: Service
 metadata:
@@ -23,5 +23,5 @@ spec:
   ports:
     - name: metrics
       protocol: TCP
-      port: 9092 # В коде у тебя метрики на 9092 (не путать с кафкой!)
+      port: 9092 # В коде метрики на 9092 (не путать с кафкой!)
       targetPort: 9092
