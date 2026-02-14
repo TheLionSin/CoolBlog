@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: go-blog-publisher
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: go-blog-publisher
+  template:
+    metadata:
+      labels:
+        app: go-blog-publisher
+    spec:
+      containers:
+        - name: publisher
+          image: go_blog_app:k8s # Тот же образ!
+          imagePullPolicy: Never
+          # ВАЖНО: Переопределяем команду!
+          # В Dockerfile у тебя они лежат в /usr/local/bin, который есть в PATH.
+          # Поэтому просто пишем имя бинарника:
+          command: ["publisher"]
+
+          env:
+            # Те же переменные, что и для API
+            - name: DB_HOST
+              value: "postgres-service"
+            - name: DB_USER
+              value: "postgres"
+            - name: DB_PASSWORD
+              value: "postgres"
+            - name: DB_NAME
+              value: "go_blog_db"
+            - name: DB_PORT
+              value: "5432"
+            - name: REDIS_ADDR
+              value: "redis-service:6379"
+            - name: KAFKA_BROKERS
+              value: "kafka-service:9092" # <-- Стандартный порт 9092!

@@ -1,0 +1,41 @@
+# 1. СЕРВИС (Это "дверь" к базе)
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-service # <-- ВАЖНО: По этому имени мы будем стучаться из Go
+spec:
+  selector:
+    app: postgres # Ищет поды с такой меткой
+  ports:
+    - protocol: TCP
+      port: 5432      # Порт, который виден внутри кластера
+      targetPort: 5432 # Порт самого контейнера
+
+---
+# 2. ДЕПЛОЙМЕНТ (Это сам процесс базы)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-deployment
+spec:
+  replicas: 1 # Нам нужна 1 база
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres # <-- Та самая метка для Сервиса
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:15
+          env: # Переменные окружения (пока хардкодим для простоты)
+            - name: POSTGRES_USER
+              value: "postgres"
+            - name: POSTGRES_PASSWORD
+              value: "postgres"
+            - name: POSTGRES_DB
+              value: "go_blog_db"
+          ports:
+            - containerPort: 5432

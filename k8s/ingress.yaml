@@ -1,0 +1,45 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: go-blog-ingress
+  annotations:
+    # Говорим, что это Nginx
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  ingressClassName: nginx # Важно для новых версий K8s
+  rules:
+    # --- Правило 1: Графана ---
+    - host: grafana.blog.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: grafana-service # Имя твоего сервиса Grafana
+                port:
+                  number: 3000
+
+    # --- Правило 2: Kafka UI ---
+    - host: kafka.blog.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: kafka-ui-service # Имя твоего сервиса Kafka UI
+                port:
+                  number: 8080
+
+    # --- Правило 3: Твой API ---
+    - host: api.blog.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: go-blog-app # Имя твоего сервиса API
+                port:
+                  number: 8080

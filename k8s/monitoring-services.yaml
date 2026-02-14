@@ -1,0 +1,27 @@
+# Сервис для метрик Паблишера
+apiVersion: v1
+kind: Service
+metadata:
+  name: publisher-metrics-service
+spec:
+  selector:
+    app: go-blog-publisher # <-- Ищет поды с этой меткой
+  ports:
+    - name: metrics
+      protocol: TCP
+      port: 9091
+      targetPort: 9091 # Порт внутри контейнера (как у тебя в коде)
+---
+# Сервис для метрик Консьюмера
+apiVersion: v1
+kind: Service
+metadata:
+  name: consumer-metrics-service
+spec:
+  selector:
+    app: go-blog-consumer
+  ports:
+    - name: metrics
+      protocol: TCP
+      port: 9092 # В коде у тебя метрики на 9092 (не путать с кафкой!)
+      targetPort: 9092

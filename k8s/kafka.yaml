@@ -1,0 +1,83 @@
+# 1. HEADLESS SERVICE (Для общения брокеров между собой)
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka-headless
+  labels:
+    app: kafka
+spec:
+  ports:
+    - port: 9092
+      name: plaintext
+    - port: 9093
+      name: controller
+  clusterIP: None
+  selector:
+    app: kafka
+---
+# 2. ОБЫЧНЫЙ СЕРВИС (Для доступа приложений)
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka-service
+  labels:
+    app: kafka
+spec:
+  ports:
+    - port: 9092
+      name: plaintext
+  selector:
+    app: kafka
+---
+# 3. STATEFULSET (Сама Кафка на официальном образе)
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: kafka
+spec:
+  serviceName: kafka-headless
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kafka
+  template:
+    metadata:
+      labels:
+        app: kafka
+    spec:
+      containers:
+        - name: kafka
+          image: apache/kafka:3.7.0 # <-- Официальный образ!
+          ports:
+            - containerPort: 9092
+            - containerPort: 9093
+          env:
+            # --- НАСТРОЙКИ KRAFT (Без приставки _CFG) ---
+            - name: KAFKA_NODE_ID
+              value: "0"
+            - name: KAFKA_PROCESS_ROLES
+              value: "controller,broker"
+            - name: KAFKA_CONTROLLER_QUORUM_VOTERS
+              value: "0@kafka-0.kafka-headless.default.svc.cluster.local:9093"
+
+            # --- СЕТЕВЫЕ НАСТРОЙКИ ---
+            - name: KAFKA_LISTENERS
+              value: "PLAINTEXT://:9092,CONTROLLER://:9093"
+            - name: KAFKA_ADVERTISED_LISTENERS
+              value: "PLAINTEXT://kafka-service:9092"
+            - name: KAFKA_LISTENER_SECURITY_PROTOCOL_MAP
+              value: "CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT"
+            - name: KAFKA_CONTROLLER_LISTENER_NAMES
+              value: "CONTROLLER"
+
+            # --- АВТО-СОЗДАНИЕ ТОПИКОВ ---
+            # Официальный образ не умеет создавать топики списком через запятую.
+            # Но мы разрешим ему создавать их "на лету", когда код попытается писать.
+            - name: KAFKA_AUTO_CREATE_TOPICS_ENABLE
+              value: "true"
+            - name: KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR
+              value: "1" # Важно для одного брокера! Иначе он будет ждать 3 реплики и висеть.
+            - name: KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR
+              value: "1"
+            - name: KAFKA_TRANSACTION_STATE_LOG_MIN_ISR
+              value: "1"
