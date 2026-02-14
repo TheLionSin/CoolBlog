@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: go-blog-app # <--- Это имя ищет Ingress!
+spec:
+  selector:
+  # Важно: эта метка должна совпадать с Deployment'ом
+  # Судя по имени пода (go-blog-app-...), метка скорее всего такая:
+    app: go-blog
+  ports:
+    - protocol: TCP
+      port: 8080 # Порт сервиса (внутри кластера)
+      targetPort: 8080 # Порт контейнера (где крутится Go)
