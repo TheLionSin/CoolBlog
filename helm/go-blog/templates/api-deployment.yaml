@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  # Имя теперь динамическое: "my-release-api"
+  name: {{ .Release.Name }}-api
+  labels:
+    app: {{ .Release.Name }}-api
+spec:
+  # Берем количество реплик из values.yaml
+  replicas: {{ .Values.api.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-api
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-api
+    spec:
+      containers:
+        - name: api
+          # Собираем имя образа из двух переменных: "go_blog_app:k8s"
+          image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag }}"
+          imagePullPolicy: {{ .Values.api.image.pullPolicy }}
+          ports:
+            - containerPort: 8080
+          env:
+            # --- Вставляем переменные окружения ---
+            - name: DB_HOST
+              value: {{ .Values.global.env.DB_HOST | quote }}
+            - name: DB_USER
+              value: {{ .Values.global.env.DB_USER | quote }}
+            - name: DB_PASSWORD
+              value: "postgres"
+            - name: DB_NAME
+              value: {{ .Values.global.env.DB_NAME | quote }}
+            - name: DB_PORT
+              value: {{ .Values.global.env.DB_PORT | quote }}
+            - name: KAFKA_BROKERS
+              value: {{ .Values.global.env.KAFKA_BROKERS | quote }}
+            - name: REDIS_ADDR
+              value: {{ .Values.global.env.REDIS_ADDR | quote }}
+            # Пароли пока пропустим для краткости, их лучше через Secrets

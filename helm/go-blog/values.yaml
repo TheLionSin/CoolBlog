@@ -1,0 +1,43 @@
+# Глобальные настройки для всех микросервисов
+global:
+  env:
+    # Добавляем префикс my-blog-
+    DB_HOST: "my-blog-postgres-service"
+    DB_USER: "postgres"
+    DB_NAME: "go_blog_db"
+    DB_PORT: "5432"
+    DB_PASSWORD: "postgres"
+
+    # Добавляем префикс my-blog-
+    KAFKA_BROKERS: "my-blog-kafka-service:9092"
+
+    # Добавляем префикс my-blog-
+    REDIS_ADDR: "my-blog-redis-service:6379"
+
+# Настройки для API
+api:
+  replicaCount: 1
+  image:
+    repository: go_blog_app
+    tag: k8s
+    pullPolicy: Never # Важно для Minikube!
+  service:
+    port: 8080
+
+# Настройки для Воркеров (Consumer/Publisher)
+workers:
+  publisher:
+    replicaCount: 1
+    command: ["publisher"] # Имя бинарника
+    image:
+      repository: go_blog_app
+      tag: k8s
+      pullPolicy: Never
+
+  consumer:
+    replicaCount: 1
+    command: ["consumer"]
+    image:
+      repository: go_blog_app
+      tag: k8s
+      pullPolicy: Never

@@ -1,0 +1,29 @@
+# Сервис для метрик Publisher
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-publisher-metrics-service
+spec:
+  selector:
+    # Важно: должно совпадать с тем, что генерирует workers.yaml
+    app: {{ .Release.Name }}-publisher
+  ports:
+    - name: metrics
+      protocol: TCP
+      port: 9091
+      targetPort: 9091
+---
+# Сервис для метрик Consumer
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-consumer-metrics-service
+spec:
+  selector:
+    # Важно: должно совпадать с тем, что генерирует workers.yaml
+    app: {{ .Release.Name }}-consumer
+  ports:
+    - name: metrics
+      protocol: TCP
+      port: 9092
+      targetPort: 9092

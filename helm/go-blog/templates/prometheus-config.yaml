@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  # Теперь имя будет уникальным: "my-blog-prometheus-config"
+  name: {{ .Release.Name }}-prometheus-config
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 5s
+    scrape_configs:
+      - job_name: 'go_blog_services'
+        static_configs:
+          - targets:
+              # Было: 'go-blog-app:8080'
+              # СТАЛО (имя релиза + суффикс сервиса):
+              - '{{ .Release.Name }}-api-service:8080'
+              # БЫЛО: 'publisher-metrics-service:9091'
+              # СТАЛО (убедись, что в monitoring-services.yaml тоже есть шаблон имени!):
+              - '{{ .Release.Name }}-publisher-metrics-service:9091'
+              - '{{ .Release.Name }}-consumer-metrics-service:9092'
