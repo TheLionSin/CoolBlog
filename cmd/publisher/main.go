@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go_blog/config"
 	"go_blog/internal/events"
 	"go_blog/internal/metrics"
@@ -15,6 +14,8 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/segmentio/kafka-go"
 )
@@ -54,11 +55,16 @@ func main() {
 	defer ticker.Stop()
 
 	go func() {
+		// Prometheus
 		http.Handle("/metrics", promhttp.Handler())
+		// k8s
+		http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+		})
 		// API: 8080
 		// Publisher: 9091 (например)
 		// Consumer: 9092
-		log.Println("Metrics server started on :9091")
+		log.Println("Metrics and Health server started on :9091")
 		if err := http.ListenAndServe(":9091", nil); err != nil {
 			log.Println("Metrics server failed:", err)
 		}

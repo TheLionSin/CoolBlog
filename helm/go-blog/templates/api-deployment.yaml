@@ -30,7 +30,11 @@ spec:
             - name: DB_USER
               value: {{ .Values.global.env.DB_USER | quote }}
             - name: DB_PASSWORD
-              value: "postgres"
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-db-secret
+                  key: password
+
             - name: DB_NAME
               value: {{ .Values.global.env.DB_NAME | quote }}
             - name: DB_PORT
@@ -39,4 +43,26 @@ spec:
               value: {{ .Values.global.env.KAFKA_BROKERS | quote }}
             - name: REDIS_ADDR
               value: {{ .Values.global.env.REDIS_ADDR | quote }}
-            # Пароли пока пропустим для краткости, их лучше через Secrets
+
+          resources:
+            requests:
+              memory: "64Mi" # Дай мне минимум 64 Мб
+              cpu: "100m" # И 10% одного ядра
+            limits:
+              memory: "128Mi" # Но не больше 128 Мб! (Иначе убей меня)
+              cpu: "500m" # И не больше 50% ядра
+
+          # --- ЗОНДЫ (Кубер будет тыкать палочкой в /health) ---
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5 # Подожди 5 секунд после старта
+            periodSeconds: 10 # Проверяй каждые 10 сек
+
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10

@@ -29,6 +29,7 @@ workers:
   publisher:
     replicaCount: 1
     command: ["publisher"] # Имя бинарника
+    metricsPort: 9091
     image:
       repository: go_blog_app
       tag: k8s
@@ -37,6 +38,7 @@ workers:
   consumer:
     replicaCount: 1
     command: ["consumer"]
+    metricsPort: 9092
     image:
       repository: go_blog_app
       tag: k8s

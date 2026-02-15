@@ -3,7 +3,6 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  # Генерируем имя: my-release-publisher, my-release-consumer
   name: {{ $.Release.Name }}-{{ $name }}
   labels:
     app: {{ $.Release.Name }}-{{ $name }}
@@ -21,16 +20,22 @@ spec:
         - name: {{ $name }}
           image: "{{ $config.image.repository }}:{{ $config.image.tag }}"
           imagePullPolicy: {{ $config.image.pullPolicy }}
-          # Тут подставляем команду (consumer или publisher)
           command: {{ $config.command | toJson }}
+
+          # --- 1. СЕКРЕТЫ И ПЕРЕМЕННЫЕ ---
           env:
-            # Копируем глобальные настройки
             - name: DB_HOST
               value: {{ $.Values.global.env.DB_HOST | quote }}
             - name: DB_USER
               value: {{ $.Values.global.env.DB_USER | quote }}
+
+            # ВМЕСТО ХАРДКОДА — БЕРЕМ ИЗ СЕКРЕТА:
             - name: DB_PASSWORD
-              value: "postgres"
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $.Release.Name }}-db-secret
+                  key: password
+
             - name: DB_NAME
               value: {{ $.Values.global.env.DB_NAME | quote }}
             - name: DB_PORT
@@ -38,5 +43,36 @@ spec:
             - name: KAFKA_BROKERS
               value: {{ $.Values.global.env.KAFKA_BROKERS | quote }}
             - name: REDIS_ADDR
-              value: {{ $.Values.global.env.REDIS_ADDR | quote }} # Пока хардкод, это норм
+              value: {{ $.Values.global.env.REDIS_ADDR | quote }}
+
+          # --- 2. ЛИМИТЫ РЕСУРСОВ ---
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "100m"
+            limits:
+              memory: "128Mi"
+              cpu: "500m"
+
+          # --- 3. ПОРТЫ (ДИНАМИЧЕСКИЕ) ---
+          ports:
+            # Берем порт из values.yaml (9091 или 9092)
+            - containerPort: {{ $config.metricsPort }}
+              name: health-metrics
+
+          # --- 4. ЗОНДЫ (PROBES) ---
+          livenessProbe:
+            httpGet:
+              path: /health
+              # Кубер будет стучаться в правильный порт для каждого воркера
+              port: {{ $config.metricsPort }}
+            initialDelaySeconds: 10
+            periodSeconds: 10
+
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: {{ $config.metricsPort }}
+            initialDelaySeconds: 5
+            periodSeconds: 10
 {{- end }}
