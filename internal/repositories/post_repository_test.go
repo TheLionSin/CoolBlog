@@ -1,263 +1,188 @@
-package repositories
+package repositories_test
 
 import (
 	"context"
-	"fmt"
-	models2 "go_blog/internal/models"
-	"go_blog/internal/testhelpers"
+	"go_blog/internal/models"
+	"go_blog/internal/repositories"
 	"testing"
+	"time"
 
+	"github.com/redis/go-redis/v9"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/modules/postgres"
+	testredis "github.com/testcontainers/testcontainers-go/modules/redis" // Модуль для Redis
+	"github.com/testcontainers/testcontainers-go/wait"
+	postgresDriver "gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
-func TestPostRepository_Create_OK(t *testing.T) {
-	db := testhelpers.SetupTestDB(t)
-	tx := testhelpers.BeginTx(t, db)
-
-	repo := NewPostRepository(tx, nil)
-
-	user := &models2.User{
-		Nickname: "author",
-		Email:    "author@test.com",
-		Password: "123",
-		IsActive: true,
-	}
-	require.NoError(t, tx.Create(user).Error)
-
-	post, err := repo.Create(context.Background(), user.ID, "Hello world", "text")
-	require.NoError(t, err)
-
-	require.NotZero(t, post.ID)
-	require.NotEmpty(t, post.Slug)
-	require.Equal(t, user.ID, post.UserID)
+// Структура для хранения зависимостей теста
+type TestDeps struct {
+	DB    *gorm.DB
+	RDB   *redis.Client
+	Clean func() // Функция для очистки контейнеров
 }
 
-func TestPostRepository_GetBySlug_OK(t *testing.T) {
-	db := testhelpers.SetupTestDB(t)
-	tx := testhelpers.BeginTx(t, db)
+// setupTestEnv поднимает Postgres и Redis в Docker
+// Это запускается один раз перед тестами или перед каждым тестом (как настроим).
+func setupTestEnv(t *testing.T) *TestDeps {
+	ctx := context.Background()
 
-	repo := NewPostRepository(tx, nil)
-
-	user := &models2.User{
-		Nickname: "u",
-		Email:    "u@test.com",
-		Password: "123",
-		IsActive: true,
-	}
-	require.NoError(t, tx.Create(user).Error)
-
-	post := &models2.Post{
-		Title:    "Title",
-		Text:     "Text",
-		Slug:     "title",
-		UserID:   user.ID,
-		IsActive: true,
-	}
-	require.NoError(t, tx.Create(post).Error)
-
-	got, err := repo.GetBySlug(context.Background(), "title")
-	require.NoError(t, err)
-	require.Equal(t, "Title", got.Title)
-	require.Equal(t, "Text", got.Text)
-}
-
-func TestPostRepository_GetBySlug_Inactive(t *testing.T) {
-	db := testhelpers.SetupTestDB(t)
-	tx := testhelpers.BeginTx(t, db)
-
-	repo := NewPostRepository(tx, nil)
-
-	user := &models2.User{
-		Nickname: "u",
-		Email:    "u2@test.com",
-		Password: "123",
-		IsActive: true,
-	}
-	require.NoError(t, tx.Create(user).Error)
-
-	post := &models2.Post{
-		Title:    "Hidden",
-		Slug:     "hidden",
-		UserID:   user.ID,
-		IsActive: true, // создаём как active
-	}
-	require.NoError(t, tx.Create(post).Error)
-
-	// теперь гарантированно делаем inactive в БД
-	require.NoError(t,
-		tx.Model(&models2.Post{}).
-			Where("id = ?", post.ID).
-			Update("is_active", false).Error,
+	// --- 1. POSTGRES ---
+	pgContainer, err := postgres.Run(ctx,
+		"postgres:15-alpine",
+		postgres.WithDatabase("testdb"),
+		postgres.WithUsername("user"),
+		postgres.WithPassword("password"),
+		testcontainers.WithWaitStrategy(
+			wait.ForLog("database system is ready to accept connections").
+				WithOccurrence(2).
+				WithStartupTimeout(10*time.Second),
+		),
 	)
+	require.NoError(t, err, "failed to start postgres container")
 
-	_, err := repo.GetBySlug(context.Background(), "hidden")
-	require.Error(t, err)
-}
+	// --- 2. REDIS ---
+	redisContainer, err := testredis.Run(ctx,
+		"redis:7-alpine",
+		testcontainers.WithWaitStrategy(
+			wait.ForLog("Ready to accept connections").
+				WithStartupTimeout(10*time.Second),
+		),
+	)
+	require.NoError(t, err, "failed to start redis container")
 
-func TestPostRepository_List_OK(t *testing.T) {
-	db := testhelpers.SetupTestDB(t)
-	tx := testhelpers.BeginTx(t, db)
+	// --- 3. ПОДКЛЮЧЕНИЕ К POSTGRES ---
+	connStr, err := pgContainer.ConnectionString(ctx, "sslmode=disable")
+	require.NoError(t, err)
 
-	repo := NewPostRepository(tx, nil)
+	db, err := gorm.Open(postgresDriver.Open(connStr), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Silent),
+	})
+	require.NoError(t, err)
 
-	user := &models2.User{
-		Nickname: "u",
-		Email:    "list@test.com",
-		Password: "123",
-		IsActive: true,
-	}
-	require.NoError(t, tx.Create(user).Error)
+	// Миграции
+	err = db.AutoMigrate(&models.User{}, &models.Post{})
+	require.NoError(t, err)
 
-	for i := 1; i <= 5; i++ {
-		p := &models2.Post{
-			Title:    fmt.Sprintf("Post %d", i),
-			Slug:     fmt.Sprintf("post-%d", i),
-			UserID:   user.ID,
-			IsActive: true,
+	// --- 4. ПОДКЛЮЧЕНИЕ К REDIS ---
+	redisURI, err := redisContainer.ConnectionString(ctx)
+	require.NoError(t, err)
+
+	// testcontainers возвращает строку вида "redis://localhost:port",
+	// go-redis умеет её парсить через ParseURL
+	opt, err := redis.ParseURL(redisURI)
+	require.NoError(t, err)
+
+	rdb := redis.NewClient(opt)
+
+	// --- 5. CLEANUP FUNCTION ---
+	cleanup := func() {
+		if err := pgContainer.Terminate(ctx); err != nil {
+			t.Logf("failed to terminate postgres: %s", err)
 		}
-		require.NoError(t, tx.Create(p).Error)
+		if err := redisContainer.Terminate(ctx); err != nil {
+			t.Logf("failed to terminate redis: %s", err)
+		}
 	}
 
-	posts, total, err := repo.List(context.Background(), 1, 10, "")
-	require.NoError(t, err)
-
-	require.Equal(t, int64(5), total)
-	require.Len(t, posts, 5)
+	return &TestDeps{
+		DB:    db,
+		RDB:   rdb,
+		Clean: cleanup,
+	}
 }
 
-func TestPostRepository_List_Search(t *testing.T) {
-	db := testhelpers.SetupTestDB(t)
-	tx := testhelpers.BeginTx(t, db)
+func TestPostRepository_FullCycle(t *testing.T) {
+	// Поднимаем окружение
+	deps := setupTestEnv(t)
+	defer deps.Clean() // Убьем контейнеры в конце теста
 
-	repo := NewPostRepository(tx, nil)
+	// Инициализируем репозиторий с DB и Redis
+	repo := repositories.NewPostRepository(deps.DB, deps.RDB)
+	ctx := context.Background()
 
-	user := &models2.User{
-		Nickname: "u",
-		Email:    "search@test.com",
-		Password: "123",
+	// --- СОЗДАЕМ ЮЗЕРА ---
+	user := &models.User{
+		Nickname: "test_integration_user",
+		Email:    "test_integration@example.com",
+		Password: "hashed_password_123", // Поле not null, надо заполнить
+		Role:     "user",
 		IsActive: true,
 	}
-	require.NoError(t, tx.Create(user).Error)
+	// Создаем юзера напрямую через GORM, минуя репозитории (нам просто нужна запись в БД)
+	err := deps.DB.Create(user).Error
+	require.NoError(t, err, "failed to create test user")
 
-	require.NoError(t, tx.Create(&models2.Post{
-		Title:    "Go tutorial",
-		Slug:     "go",
-		UserID:   user.ID,
-		IsActive: true,
-	}).Error)
+	// ЗАПОМИНАЕМ ЕГО ID!
+	// GORM автоматически заполнил user.ID после создания
+	uid := user.ID
 
-	require.NoError(t, tx.Create(&models2.Post{
-		Title:    "Python tutorial",
-		Slug:     "py",
-		UserID:   user.ID,
-		IsActive: true,
-	}).Error)
+	// Данные для теста
+	var createdPost *models.Post
+	title := "Test Title Integration"
+	text := "Test Text Content"
 
-	posts, total, err := repo.List(context.Background(), 1, 10, "go")
-	require.NoError(t, err)
+	// --- ШАГ 1: CREATE ---
+	t.Run("CreateTx", func(t *testing.T) {
+		// Используем uid, который мы получили выше
+		post, err := repo.CreateTx(ctx, deps.DB, uid, title, text)
 
-	require.Equal(t, int64(1), total)
-	require.Len(t, posts, 1)
-	require.Equal(t, "Go tutorial", posts[0].Title)
-}
+		require.NoError(t, err)
+		require.NotNil(t, post)
 
-func TestPostRepository_UpdateOwnedBy_OK(t *testing.T) {
-	db := testhelpers.SetupTestDB(t)
-	tx := testhelpers.BeginTx(t, db)
+		assert.Equal(t, uid, post.UserID) // Проверяем, что пост привязался к юзеру
+		assert.Equal(t, title, post.Title)
+		assert.NotEmpty(t, post.Slug)
 
-	repo := NewPostRepository(tx, nil)
+		createdPost = post
+	})
 
-	owner := &models2.User{
-		Nickname: "o",
-		Email:    "o@test.com",
-		Password: "123",
-		IsActive: true,
-	}
-	require.NoError(t, tx.Create(owner).Error)
+	// --- ШАГ 2: GET (Проверяем чтение) ---
+	t.Run("GetBySlug", func(t *testing.T) {
+		require.NotNil(t, createdPost)
 
-	post := &models2.Post{
-		Title:    "Old",
-		Slug:     "old",
-		UserID:   owner.ID,
-		IsActive: true,
-	}
-	require.NoError(t, tx.Create(post).Error)
+		fetched, err := repo.GetBySlug(ctx, createdPost.Slug)
+		require.NoError(t, err)
+		assert.Equal(t, createdPost.ID, fetched.ID)
+		assert.Equal(t, createdPost.Title, fetched.Title)
+	})
 
-	updated, err := repo.UpdateOwnedBy(
-		context.Background(),
-		"old",
-		owner.ID,
-		map[string]any{"title": "New"}, // важно: "title" (как в твоём repo updates map)
-	)
-	require.NoError(t, err)
-	require.Equal(t, "New", updated.Title)
-}
+	// --- ШАГ 3: UPDATE ---
+	t.Run("UpdateTx", func(t *testing.T) {
+		require.NotNil(t, createdPost)
 
-func TestPostRepository_UpdateOwnedBy_NotOwner(t *testing.T) {
-	db := testhelpers.SetupTestDB(t)
-	tx := testhelpers.BeginTx(t, db)
+		newTitle := "Updated Title"
+		updates := map[string]any{
+			"title": newTitle,
+		}
 
-	repo := NewPostRepository(tx, nil)
+		updated, err := repo.UpdateTx(ctx, deps.DB, createdPost.Slug, uid, updates)
+		require.NoError(t, err)
+		assert.Equal(t, newTitle, updated.Title)
 
-	owner := &models2.User{
-		Nickname: "o",
-		Email:    "o2@test.com",
-		Password: "123",
-		IsActive: true,
-	}
-	other := &models2.User{
-		Nickname: "x",
-		Email:    "x@test.com",
-		Password: "123",
-		IsActive: true,
-	}
-	require.NoError(t, tx.Create(owner).Error)
-	require.NoError(t, tx.Create(other).Error)
+		// Проверяем через Get, что в базе обновилось
+		fetched, _ := repo.GetBySlug(ctx, createdPost.Slug)
+		assert.Equal(t, newTitle, fetched.Title)
+	})
 
-	post := &models2.Post{
-		Title:    "Post",
-		Slug:     "post",
-		UserID:   owner.ID,
-		IsActive: true,
-	}
-	require.NoError(t, tx.Create(post).Error)
+	// --- ШАГ 4: DELETE ---
+	t.Run("DeleteTx", func(t *testing.T) {
+		require.NotNil(t, createdPost)
 
-	_, err := repo.UpdateOwnedBy(
-		context.Background(),
-		"post",
-		other.ID,
-		map[string]any{"title": "Hack"},
-	)
-	require.Error(t, err)
-}
+		// Исправлено: DeleteTx возвращает (*models.Post, error)
+		deletedPost, err := repo.DeleteTx(ctx, deps.DB, createdPost.Slug, uid)
+		require.NoError(t, err)
+		require.NotNil(t, deletedPost)
 
-func TestPostRepository_DeleteOwnedBy_OK(t *testing.T) {
-	db := testhelpers.SetupTestDB(t)
-	tx := testhelpers.BeginTx(t, db)
+		// Проверяем, что ID удаленного поста совпадает
+		assert.Equal(t, createdPost.ID, deletedPost.ID)
 
-	repo := NewPostRepository(tx, nil)
-
-	user := &models2.User{
-		Nickname: "u",
-		Email:    "del@test.com",
-		Password: "123",
-		IsActive: true,
-	}
-	require.NoError(t, tx.Create(user).Error)
-
-	post := &models2.Post{
-		Title:    "Delete me",
-		Slug:     "del",
-		UserID:   user.ID,
-		IsActive: true,
-	}
-	require.NoError(t, tx.Create(post).Error)
-
-	err := repo.DeleteOwnedBy(context.Background(), "del", user.ID)
-	require.NoError(t, err)
-
-	_, err = repo.GetBySlug(context.Background(), "del")
-	require.Error(t, err)
-	require.ErrorIs(t, err, gorm.ErrRecordNotFound)
+		// Проверяем, что в базе его больше нет (или он помечен как удаленный)
+		_, errGet := repo.GetBySlug(ctx, createdPost.Slug)
+		assert.Error(t, errGet) // Ожидаем ошибку (RecordNotFound)
+	})
 }

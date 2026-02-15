@@ -5,27 +5,30 @@ import (
 	"errors"
 	"go_blog/internal/events"
 	"go_blog/internal/models"
-	"go_blog/internal/repositories"
 	"strings"
 
 	"gorm.io/gorm"
 )
 
-type PostRepo interface {
-	Create(ctx context.Context, uid uint, title, text string) (*models.Post, error)
-	UpdateOwnedBy(ctx context.Context, slug string, uid uint, updates map[string]any) (*models.Post, error)
-	DeleteOwnedBy(ctx context.Context, slug string, uid uint) error
+type PostRepository interface {
+	CreateTx(ctx context.Context, tx *gorm.DB, uid uint, title, text string) (*models.Post, error)
+	UpdateTx(ctx context.Context, tx *gorm.DB, slug string, uid uint, updates map[string]any) (*models.Post, error)
+	DeleteTx(ctx context.Context, tx *gorm.DB, slug string, uid uint) (*models.Post, error)
 	GetBySlug(ctx context.Context, slug string) (*models.Post, error)
 	List(ctx context.Context, page, limit int, q string) ([]models.Post, int64, error)
 }
 
-type PostService struct {
-	db     *gorm.DB
-	repo   *repositories.PostRepository
-	outbox *repositories.OutboxRepository
+type OutBoxRepository interface {
+	CreateTx(ctx context.Context, tx *gorm.DB, evt *models.OutboxEvent) error
 }
 
-func NewPostService(db *gorm.DB, repo *repositories.PostRepository, outbox *repositories.OutboxRepository) *PostService {
+type PostService struct {
+	db     *gorm.DB
+	repo   PostRepository
+	outbox OutBoxRepository
+}
+
+func NewPostService(db *gorm.DB, repo PostRepository, outbox OutBoxRepository) *PostService {
 	return &PostService{db: db, repo: repo, outbox: outbox}
 }
 

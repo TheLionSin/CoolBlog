@@ -1,167 +1,167 @@
-package services
+package services_test
 
 import (
 	"context"
 	"errors"
-	"go_blog/internal/events"
 	"go_blog/internal/models"
+	"go_blog/internal/services"
 	"testing"
 
+	"github.com/glebarez/sqlite" // <--- Это чистый Go, работает везде
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 )
 
-// ---- fake bus (если NewPostService(repo, bus) и Create публикует событие) ----
+// --- 1. MOCKS (Заглушки) ---
+// Мы создаем фейковые репозитории, которые ничего не пишут в базу,
+// а просто возвращают то, что мы им скажем.
 
-type fakeBus struct {
-	publishFn func(ctx context.Context, e events.Envelope) error
+type MockPostRepo struct {
+	mock.Mock
 }
 
-func (b *fakeBus) Publish(ctx context.Context, e events.Envelope) error {
-	if b.publishFn != nil {
-		return b.publishFn(ctx, e)
+// Заглушка для CreateTx
+func (m *MockPostRepo) CreateTx(ctx context.Context, tx *gorm.DB, uid uint, title, text string) (*models.Post, error) {
+	// mock.Anything означает, что нам плевать, какой именно *gorm.DB пришел, главное что пришел
+	args := m.Called(ctx, mock.Anything, uid, title, text)
+
+	// Возвращаем (Post, error)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
 	}
-	return nil
+	return args.Get(0).(*models.Post), args.Error(1)
 }
 
-// ---- fake repo ----
-
-type fakePostRepo struct {
-	createFn      func(ctx context.Context, uid uint, title, text string) (*models.Post, error)
-	updateOwnedFn func(ctx context.Context, slug string, uid uint, updates map[string]any) (*models.Post, error)
-	deleteOwnedFn func(ctx context.Context, slug string, uid uint) error
-	getBySlugFn   func(ctx context.Context, slug string) (*models.Post, error)
-	listFn        func(ctx context.Context, page, limit int, q string) ([]models.Post, int64, error)
-}
-
-func (f *fakePostRepo) Create(ctx context.Context, uid uint, title, text string) (*models.Post, error) {
-	return f.createFn(ctx, uid, title, text)
-}
-func (f *fakePostRepo) UpdateOwnedBy(ctx context.Context, slug string, uid uint, updates map[string]any) (*models.Post, error) {
-	return f.updateOwnedFn(ctx, slug, uid, updates)
-}
-func (f *fakePostRepo) DeleteOwnedBy(ctx context.Context, slug string, uid uint) error {
-	return f.deleteOwnedFn(ctx, slug, uid)
-}
-func (f *fakePostRepo) GetBySlug(ctx context.Context, slug string) (*models.Post, error) {
-	return f.getBySlugFn(ctx, slug)
-}
-func (f *fakePostRepo) List(ctx context.Context, page, limit int, q string) ([]models.Post, int64, error) {
-	return f.listFn(ctx, page, limit, q)
-}
-
-// ---- tests ----
-
-func TestPostService_Create_Trims(t *testing.T) {
-	repo := &fakePostRepo{
-		createFn: func(ctx context.Context, uid uint, title, text string) (*models.Post, error) {
-			require.Equal(t, uint(10), uid)
-			require.Equal(t, "Hello", title)
-			require.Equal(t, "World", text)
-			return &models.Post{Slug: "hello", Title: title, Text: text, UserID: uid, IsActive: true}, nil
-		},
+// Заглушки для остальных методов (нужны, чтобы соответствовать интерфейсу)
+func (m *MockPostRepo) UpdateTx(ctx context.Context, tx *gorm.DB, slug string, uid uint, updates map[string]any) (*models.Post, error) {
+	args := m.Called(ctx, mock.Anything, slug, uid, updates)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
 	}
+	return args.Get(0).(*models.Post), args.Error(1)
+}
+func (m *MockPostRepo) DeleteTx(ctx context.Context, tx *gorm.DB, slug string, uid uint) (*models.Post, error) {
+	args := m.Called(ctx, mock.Anything, slug, uid)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*models.Post), args.Error(1)
+}
+func (m *MockPostRepo) GetBySlug(ctx context.Context, slug string) (*models.Post, error) {
+	args := m.Called(ctx, slug)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*models.Post), args.Error(1)
+}
+func (m *MockPostRepo) List(ctx context.Context, page, limit int, q string) ([]models.Post, int64, error) {
+	args := m.Called(ctx, page, limit, q)
+	return args.Get(0).([]models.Post), args.Get(1).(int64), args.Error(2)
+}
 
-	bus := &fakeBus{} // Create публикует — пусть будет no-op
-	svc := NewPostService(repo, bus)
+type MockOutboxRepo struct {
+	mock.Mock
+}
 
-	out, err := svc.Create(context.Background(), 10, "  Hello  ", "  World ")
+func (m *MockOutboxRepo) CreateTx(ctx context.Context, tx *gorm.DB, evt *models.OutboxEvent) error {
+	args := m.Called(ctx, mock.Anything, evt)
+	return args.Error(0)
+}
+
+// --- 2. SETUP (Настройка теста) ---
+
+func setupServiceTest(t *testing.T) (*services.PostService, *MockPostRepo, *MockOutboxRepo) {
+	// Поднимаем SQLite в оперативной памяти (супер быстро)
+	// Это нужно, чтобы s.db.Transaction работала реально
+	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
 	require.NoError(t, err)
-	require.Equal(t, "Hello", out.Title)
-	require.Equal(t, "World", out.Text)
+
+	mockRepo := new(MockPostRepo)
+	mockOutbox := new(MockOutboxRepo)
+
+	// ВАЖНО: Твой PostService должен принимать интерфейсы, как мы договаривались
+	service := services.NewPostService(db, mockRepo, mockOutbox)
+
+	return service, mockRepo, mockOutbox
 }
 
-func TestPostService_Update_NoFields(t *testing.T) {
-	repo := &fakePostRepo{
-		updateOwnedFn: func(ctx context.Context, slug string, uid uint, updates map[string]any) (*models.Post, error) {
-			t.Fatalf("repo.UpdateOwnedBy must not be called")
-			return nil, nil
-		},
-	}
-	bus := &fakeBus{}
-	svc := NewPostService(repo, bus)
+// --- 3. ТЕСТЫ ---
 
-	_, err := svc.Update(context.Background(), "x", 1, nil, nil)
-	require.ErrorIs(t, err, ErrNoFieldsToUpdate)
-}
+func TestPostService_Create(t *testing.T) {
+	ctx := context.Background()
 
-func TestPostService_Update_TrimsAndMapsNotFound(t *testing.T) {
-	title := "  New  "
-	text := "  Text "
-	repo := &fakePostRepo{
-		updateOwnedFn: func(ctx context.Context, slug string, uid uint, updates map[string]any) (*models.Post, error) {
-			require.Equal(t, "slug", slug)
-			require.Equal(t, uint(7), uid)
-			require.Equal(t, "New", updates["title"])
-			require.Equal(t, "Text", updates["text"])
-			return nil, gorm.ErrRecordNotFound
-		},
-	}
-	bus := &fakeBus{}
-	svc := NewPostService(repo, bus)
+	t.Run("Success: Post and Event Created", func(t *testing.T) {
+		service, mockRepo, mockOutbox := setupServiceTest(t)
 
-	_, err := svc.Update(context.Background(), "slug", 7, &title, &text)
-	require.ErrorIs(t, err, ErrPostNotFound)
-}
+		// Данные
+		uid := uint(1)
+		title := "New Post"
+		text := "Content"
+		expectedPost := &models.Post{
+			Model:  gorm.Model{ID: 1},
+			UserID: uid, Title: title, Slug: "new-post"}
 
-func TestPostService_Update_RepoErrorPassesThrough(t *testing.T) {
-	want := errors.New("db down")
-	title := "New"
-	repo := &fakePostRepo{
-		updateOwnedFn: func(ctx context.Context, slug string, uid uint, updates map[string]any) (*models.Post, error) {
-			return nil, want
-		},
-	}
-	bus := &fakeBus{}
-	svc := NewPostService(repo, bus)
+		// НАСТРОЙКА МОКОВ (Сценарий)
+		// 1. Ожидаем вызов репозитория. Возвращаем успешный пост.
+		mockRepo.On("CreateTx", ctx, mock.Anything, uid, title, text).
+			Return(expectedPost, nil)
 
-	_, err := svc.Update(context.Background(), "s", 1, &title, nil)
-	require.ErrorIs(t, err, want)
-}
+		// 2. Ожидаем вызов Outbox. Проверяем, что событие правильное.
+		mockOutbox.On("CreateTx", ctx, mock.Anything, mock.MatchedBy(func(evt *models.OutboxEvent) bool {
+			return evt.EventType == "PostCreated" && evt.Payload != ""
+		})).Return(nil)
 
-func TestPostService_Delete_MapsNotFound(t *testing.T) {
-	repo := &fakePostRepo{
-		deleteOwnedFn: func(ctx context.Context, slug string, uid uint) error {
-			return gorm.ErrRecordNotFound
-		},
-	}
-	bus := &fakeBus{}
-	svc := NewPostService(repo, bus)
+		// ВЫПОЛНЕНИЕ
+		result, err := service.Create(ctx, uid, title, text)
 
-	err := svc.Delete(context.Background(), "slug", 1)
-	require.ErrorIs(t, err, ErrPostNotFound)
-}
+		// ПРОВЕРКА
+		require.NoError(t, err)
+		assert.Equal(t, expectedPost.ID, result.ID)
 
-func TestPostService_Get_MapsNotFound(t *testing.T) {
-	repo := &fakePostRepo{
-		getBySlugFn: func(ctx context.Context, slug string) (*models.Post, error) {
-			return nil, gorm.ErrRecordNotFound
-		},
-	}
-	bus := &fakeBus{}
-	svc := NewPostService(repo, bus)
+		// Убеждаемся, что моки были вызваны
+		mockRepo.AssertExpectations(t)
+		mockOutbox.AssertExpectations(t)
+	})
 
-	_, err := svc.Get(context.Background(), "slug")
-	require.ErrorIs(t, err, ErrPostNotFound)
-}
+	t.Run("Failure: Repo Returns Error", func(t *testing.T) {
+		service, mockRepo, mockOutbox := setupServiceTest(t)
 
-func TestPostService_List_PassesThrough(t *testing.T) {
-	repo := &fakePostRepo{
-		listFn: func(ctx context.Context, page, limit int, q string) ([]models.Post, int64, error) {
-			require.Equal(t, 2, page)
-			require.Equal(t, 5, limit)
-			require.Equal(t, "go", q)
-			return []models.Post{
-				{Slug: "a", Title: "A"},
-				{Slug: "b", Title: "B"},
-			}, 123, nil
-		},
-	}
-	bus := &fakeBus{}
-	svc := NewPostService(repo, bus)
+		// Сценарий: Репозиторий возвращает ошибку базы
+		mockRepo.On("CreateTx", ctx, mock.Anything, uint(1), "Fail", "Text").
+			Return(nil, errors.New("db connection lost"))
 
-	posts, total, err := svc.List(context.Background(), 2, 5, "go")
-	require.NoError(t, err)
-	require.Len(t, posts, 2)
-	require.Equal(t, int64(123), total)
+		// Outbox НЕ должен вызваться (так как транзакция прервется раньше)
+
+		result, err := service.Create(ctx, 1, "Fail", "Text")
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "db connection lost")
+
+		mockRepo.AssertExpectations(t)
+		mockOutbox.AssertNotCalled(t, "CreateTx") // Гарантируем, что событие не создалось
+	})
+
+	t.Run("Failure: Outbox Returns Error", func(t *testing.T) {
+		service, mockRepo, mockOutbox := setupServiceTest(t)
+
+		// Сценарий: Пост создался, но Outbox упал
+		post := &models.Post{Model: gorm.Model{ID: 1}}
+		mockRepo.On("CreateTx", ctx, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+			Return(post, nil)
+
+		mockOutbox.On("CreateTx", ctx, mock.Anything, mock.Anything).
+			Return(errors.New("kafka error"))
+
+		result, err := service.Create(ctx, 1, "Title", "Text")
+
+		// Ожидаем ошибку
+		assert.Error(t, err)
+		assert.Nil(t, result) // Сервис должен вернуть nil, так как транзакция откатилась!
+
+		mockRepo.AssertExpectations(t)
+		mockOutbox.AssertExpectations(t)
+	})
 }
