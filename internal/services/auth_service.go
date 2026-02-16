@@ -6,29 +6,39 @@ import (
 	"go_blog/internal/dto"
 	"go_blog/internal/events"
 	"go_blog/internal/models"
-	"go_blog/internal/repositories"
 	"go_blog/internal/utils"
 	"time"
 
 	"gorm.io/gorm"
 )
 
-type UserRepo interface {
-	Create(ctx context.Context, user *models.User) error
+type UserRepository interface {
+	CreateTx(ctx context.Context, tx *gorm.DB, user *models.User) error
 	FindByEmail(ctx context.Context, email string) (*models.User, error)
-	FindByID(ctx context.Context, id uint) (*models.User, error)
+	// FindByID может пригодиться позже
 }
+
+type TokenRepository interface {
+	CreateTx(ctx context.Context, tx *gorm.DB, token *models.RefreshToken) error
+	GetByHash(ctx context.Context, hash string) (*models.RefreshToken, error)
+	Delete(ctx context.Context, id uint) error
+}
+
+type OutboxRepository interface {
+	CreateTx(ctx context.Context, tx *gorm.DB, evt *models.OutboxEvent) error
+}
+
 type AuthService struct {
 	db         *gorm.DB
-	userRepo   *repositories.UserRepository
-	tokenRepo  *repositories.RefreshTokenRepository
-	outboxRepo *repositories.OutboxRepository
+	userRepo   UserRepository
+	tokenRepo  TokenRepository
+	outboxRepo OutboxRepository
 }
 
 func NewAuthService(db *gorm.DB,
-	userRepo *repositories.UserRepository,
-	tokenRepo *repositories.RefreshTokenRepository,
-	outboxRepo *repositories.OutboxRepository,
+	userRepo UserRepository,
+	tokenRepo TokenRepository,
+	outboxRepo OutboxRepository,
 ) *AuthService {
 	return &AuthService{
 		db:         db,

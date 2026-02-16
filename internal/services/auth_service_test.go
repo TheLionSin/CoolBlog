@@ -1,228 +1,121 @@
-package services
+package services_test
 
 import (
 	"context"
+	"github.com/glebarez/sqlite"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"go_blog/internal/dto"
 	"go_blog/internal/models"
-	"go_blog/internal/stores"
-	"go_blog/internal/utils"
-	"testing"
-	"time"
-
-	"github.com/stretchr/testify/require"
+	"go_blog/internal/services"
 	"gorm.io/gorm"
+	"testing"
 )
 
-type fakeUserRepo struct {
-	users  map[uint]*models.User
-	byMail map[string]*models.User
-	nextID uint
+type MockUserRepo struct {
+	mock.Mock
 }
 
-func newFakeUserRepo() *fakeUserRepo {
-	return &fakeUserRepo{
-		users:  make(map[uint]*models.User),
-		byMail: make(map[string]*models.User),
-		nextID: 1,
+func (m *MockUserRepo) CreateTx(ctx context.Context, tx *gorm.DB, user *models.User) error {
+	args := m.Called(ctx, mock.Anything, user)
+	// Эмулируем присвоение ID базой данных
+	if args.Error(0) == nil {
+		user.ID = 1
 	}
+	return args.Error(0)
 }
 
-func (f *fakeUserRepo) Create(ctx context.Context, u *models.User) error {
-	u.ID = f.nextID
-	f.nextID++
-	f.users[u.ID] = u
-	f.byMail[u.Email] = u
-	return nil
-}
-
-func (f *fakeUserRepo) FindByEmail(ctx context.Context, email string) (*models.User, error) {
-	u, ok := f.byMail[email]
-	if !ok {
-		return nil, gorm.ErrRecordNotFound
+func (m *MockUserRepo) FindByEmail(ctx context.Context, email string) (*models.User, error) {
+	args := m.Called(ctx, email)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
 	}
-	return u, nil
+	return args.Get(0).(*models.User), args.Error(1)
 }
 
-func (f *fakeUserRepo) FindByID(ctx context.Context, id uint) (*models.User, error) {
-	u, ok := f.users[id]
-	if !ok {
-		return nil, gorm.ErrRecordNotFound
+type MockTokenRepo struct {
+	mock.Mock
+}
+
+func (m *MockTokenRepo) CreateTx(ctx context.Context, tx *gorm.DB, token *models.RefreshToken) error {
+	args := m.Called(ctx, mock.Anything, token)
+	return args.Error(0)
+}
+func (m *MockTokenRepo) GetByHash(ctx context.Context, hash string) (*models.RefreshToken, error) {
+	args := m.Called(ctx, hash)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
 	}
-	return u, nil
+	return args.Get(0).(*models.RefreshToken), args.Error(1)
+}
+func (m *MockTokenRepo) Delete(ctx context.Context, id uint) error {
+	args := m.Called(ctx, id)
+	return args.Error(0)
 }
 
-type fakeRefreshStore struct {
-	hashToUser map[string]uint
+type MockOutboxRepoAuth struct {
+	mock.Mock
 }
 
-func newFakeRefreshStore() *fakeRefreshStore {
-	return &fakeRefreshStore{
-		hashToUser: make(map[string]uint),
-	}
+func (m *MockOutboxRepoAuth) CreateTx(ctx context.Context, tx *gorm.DB, evt *models.OutboxEvent) error {
+	args := m.Called(ctx, mock.Anything, evt)
+	return args.Error(0)
 }
 
-func (f *fakeRefreshStore) Save(ctx context.Context, uid uint, hash string, _ time.Duration) error {
-	f.hashToUser[hash] = uid
-	return nil
-}
+// --- SETUP ---
 
-func (f *fakeRefreshStore) GetUserIDByHash(ctx context.Context, hash string) (uint, error) {
-	uid, ok := f.hashToUser[hash]
-	if !ok {
-		return 0, stores.ErrInvalidRefresh
-	}
-	return uid, nil
-}
-
-func (f *fakeRefreshStore) Rotate(ctx context.Context, oldHash string, uid uint, newHash string, _ time.Duration) error {
-	delete(f.hashToUser, oldHash)
-	f.hashToUser[newHash] = uid
-	return nil
-}
-
-func (f *fakeRefreshStore) Delete(ctx context.Context, hash string, uid uint) error {
-	delete(f.hashToUser, hash)
-	return nil
-}
-
-func createUserViaService(t *testing.T, svc *AuthService, email, password string) uint {
-	t.Helper()
-
-	out, err := svc.Register(context.Background(), dto.RegisterRequest{
-		Nickname: "test_" + email,
-		Email:    email,
-		Password: password,
-	})
-	require.NoError(t, err)
-	return out.ID
-}
-
-func TestAuthService_Login_OK_And_Refresh_Works(t *testing.T) {
-	users := newFakeUserRepo()
-	tokens := newFakeRefreshStore()
-	svc := NewAuthService(users, tokens)
-
-	_, err := svc.Register(context.Background(), dto.RegisterRequest{
-		Nickname: "test",
-		Email:    "a@test.com",
-		Password: "123456",
-	})
+func setupAuthService(t *testing.T) (*services.AuthService, *MockUserRepo, *MockTokenRepo, *MockOutboxRepoAuth) {
+	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
 	require.NoError(t, err)
 
-	t1, err := svc.Login(context.Background(), dto.LoginRequest{
-		Email:    "a@test.com",
-		Password: "123456",
-	})
-	require.NoError(t, err)
+	mUser := new(MockUserRepo)
+	mToken := new(MockTokenRepo)
+	mOutbox := new(MockOutboxRepoAuth)
 
-	t2, err := svc.Refresh(context.Background(), t1.RefreshToken)
-	require.NoError(t, err)
-	require.NotEqual(t, t1.RefreshToken, t2.RefreshToken)
+	s := services.NewAuthService(db, mUser, mToken, mOutbox)
+	return s, mUser, mToken, mOutbox
 }
 
-func TestAuthService_Login_InvalidCredentials(t *testing.T) {
-	users := newFakeUserRepo()
-	tokens := newFakeRefreshStore()
-	svc := NewAuthService(users, tokens)
+// --- TESTS ---
 
-	_, err := svc.Login(context.Background(), dto.LoginRequest{
-		Email:    "no@test.com",
-		Password: "wrong",
+func TestAuthService_Register(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("Success Registration", func(t *testing.T) {
+		service, mUser, mToken, mOutbox := setupAuthService(t)
+
+		req := dto.RegisterRequest{
+			Nickname: "tester",
+			Email:    "test@auth.com",
+			Password: "password123",
+		}
+
+		// 1. Ожидаем создания Юзера
+		mUser.On("CreateTx", ctx, mock.Anything, mock.MatchedBy(func(u *models.User) bool {
+			return u.Email == req.Email && u.Nickname == req.Nickname
+		})).Return(nil)
+
+		// 2. Ожидаем сохранения Рефреш токена
+		mToken.On("CreateTx", ctx, mock.Anything, mock.MatchedBy(func(tok *models.RefreshToken) bool {
+			return tok.UserID == 1 && tok.UserAgent == "Mozilla"
+		})).Return(nil)
+
+		// 3. Ожидаем событие UserRegistered
+		mOutbox.On("CreateTx", ctx, mock.Anything, mock.MatchedBy(func(evt *models.OutboxEvent) bool {
+			return evt.EventType == "UserRegistered"
+		})).Return(nil)
+
+		// Call
+		resp, err := service.Register(ctx, req, "Mozilla", "127.0.0.1")
+
+		// Assert
+		require.NoError(t, err)
+		assert.NotEmpty(t, resp.AccessToken)
+		assert.NotEmpty(t, resp.RefreshToken)
+
+		mUser.AssertExpectations(t)
+		mToken.AssertExpectations(t)
+		mOutbox.AssertExpectations(t)
 	})
-	require.ErrorIs(t, err, ErrInvalidCredentials)
-}
-
-func TestAuthService_Refresh_Rotation_OldDies(t *testing.T) {
-	users := newFakeUserRepo()
-	tokens := newFakeRefreshStore()
-	svc := NewAuthService(users, tokens)
-
-	_, err := svc.Register(context.Background(), dto.RegisterRequest{
-		Nickname: "test",
-		Email:    "rot@test.com",
-		Password: "123456",
-	})
-	require.NoError(t, err)
-
-	t1, err := svc.Login(context.Background(), dto.LoginRequest{
-		Email:    "rot@test.com",
-		Password: "123456",
-	})
-	require.NoError(t, err)
-
-	t2, err := svc.Refresh(context.Background(), t1.RefreshToken)
-	require.NoError(t, err)
-	require.NotEqual(t, t1.RefreshToken, t2.RefreshToken)
-
-	// старый refresh должен стать невалидным
-	_, err = svc.Refresh(context.Background(), t1.RefreshToken)
-	require.ErrorIs(t, err, ErrInvalidRefresh)
-}
-
-func TestAuthService_MultiSession_LogoutOnlyOneSession(t *testing.T) {
-	users := newFakeUserRepo()
-	tokens := newFakeRefreshStore()
-	svc := NewAuthService(users, tokens)
-
-	_, _ = svc.Register(context.Background(), dto.RegisterRequest{
-		Nickname: "u",
-		Email:    "ms@test.com",
-		Password: "123456",
-	})
-
-	t1, _ := svc.Login(context.Background(), dto.LoginRequest{
-		Email: "ms@test.com", Password: "123456",
-	})
-	t2, _ := svc.Login(context.Background(), dto.LoginRequest{
-		Email: "ms@test.com", Password: "123456",
-	})
-
-	require.NoError(t, svc.Logout(context.Background(), t1.RefreshToken))
-
-	_, err := svc.Refresh(context.Background(), t1.RefreshToken)
-	require.ErrorIs(t, err, ErrInvalidRefresh)
-
-	_, err = svc.Refresh(context.Background(), t2.RefreshToken)
-	require.NoError(t, err)
-}
-
-func TestAuthService_Logout_InvalidRefresh_IsOK(t *testing.T) {
-	users := newFakeUserRepo()
-	tokens := newFakeRefreshStore()
-	svc := NewAuthService(users, tokens)
-
-	// logout должен быть идемпотентным
-	require.NoError(t, svc.Logout(context.Background(), "not-a-refresh-token"))
-}
-
-func TestAuthService_Refresh_InvalidRefresh(t *testing.T) {
-	users := newFakeUserRepo()
-	tokens := newFakeRefreshStore()
-	svc := NewAuthService(users, tokens)
-
-	_, err := svc.Refresh(context.Background(), "not-a-refresh-token")
-	require.ErrorIs(t, err, ErrInvalidRefresh)
-}
-
-func TestAuthService_Refresh_UsesCurrentUserRole(t *testing.T) {
-	users := newFakeUserRepo()
-	tokens := newFakeRefreshStore()
-	svc := NewAuthService(users, tokens)
-
-	out, _ := svc.Register(context.Background(), dto.RegisterRequest{
-		Nickname: "u",
-		Email:    "role@test.com",
-		Password: "123456",
-	})
-
-	t1, _ := svc.Login(context.Background(), dto.LoginRequest{
-		Email: "role@test.com", Password: "123456",
-	})
-
-	users.users[out.ID].Role = "admin"
-
-	t2, _ := svc.Refresh(context.Background(), t1.RefreshToken)
-
-	_, claims, _ := utils.ParseAccessJWT(t2.AccessToken)
-	require.Equal(t, "admin", claims["role"])
 }

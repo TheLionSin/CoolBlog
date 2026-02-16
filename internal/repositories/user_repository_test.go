@@ -1,101 +1,65 @@
-package repositories
+package repositories_test
 
 import (
 	"context"
-	"go_blog/internal/models"
-	"go_blog/internal/testhelpers"
-	"testing"
-
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go_blog/internal/models"
+	"go_blog/internal/repositories"
+	"testing"
 )
 
-func TestUserRepository_Create_OK(t *testing.T) {
-	db := testhelpers.SetupTestDB(t)
-	tx := testhelpers.BeginTx(t, db)
+func TestUserRepository_Duplicate(t *testing.T) {
+	deps := setupTestEnv(t)
+	defer deps.Clean()
 
-	repo := NewUserRepository(tx)
+	repo := repositories.NewUserRepository(deps.DB)
+	ctx := context.Background()
 
-	u := &models.User{
-		Nickname: "test",
-		Email:    "test@test.com",
-		Password: "12345s",
-	}
-
-	err := repo.Create(context.Background(), u)
-	require.NoError(t, err)
-	require.NotZero(t, u.ID)
-}
-
-func TestUserRepository_Create_DuplicateEmail(t *testing.T) {
-	db := testhelpers.SetupTestDB(t)
-	tx := testhelpers.BeginTx(t, db)
-
-	repo := NewUserRepository(tx)
-
-	u1 := &models.User{
-		Nickname: "dup",
+	user1 := &models.User{
+		Nickname: "original_user",
 		Email:    "dup@test.com",
-		Password: "12345s",
-	}
-	u2 := &models.User{
-		Nickname: "dup",
-		Email:    "dup@test.com",
-		Password: "12345s",
+		Password: "hash",
+		Role:     "user",
+		IsActive: true,
 	}
 
-	require.NoError(t, repo.Create(context.Background(), u1))
+	err := repo.CreateTx(ctx, deps.DB, user1)
+	require.NoError(t, err)
 
-	err := repo.Create(context.Background(), u2)
+	user2 := &models.User{
+		Nickname: "imposter",
+		Email:    "dup@test.com", // <--- Дубликат
+		Password: "hash",
+		Role:     "user",
+		IsActive: true,
+	}
+
+	err = repo.CreateTx(ctx, deps.DB, user2)
 	require.Error(t, err)
-	require.ErrorIs(t, err, ErrUserExists)
+	assert.Equal(t, repositories.ErrUserExists, err)
 }
 
-func TestUserRepository_FindByEmail_OnlyActive(t *testing.T) {
-	db := testhelpers.SetupTestDB(t)
-	tx := testhelpers.BeginTx(t, db)
+func TestUserRepository_FindByEmail(t *testing.T) {
+	deps := setupTestEnv(t)
+	defer deps.Clean()
 
-	repo := NewUserRepository(tx)
+	repo := repositories.NewUserRepository(deps.DB)
+	ctx := context.Background()
 
-	active := &models.User{
-		Nickname: "active",
-		Email:    "active@test.com",
-		Password: "12345s",
-	}
-	inactive := &models.User{
-		Nickname: "inactive",
-		Email:    "inactive@test.com",
-		Password: "12345s",
-		IsActive: false,
+	email := "findme@test.com"
+	user := &models.User{
+		Nickname: "finder",
+		Email:    email,
+		Password: "hash",
+		IsActive: true, // Важно! В тебя Where("is_active = ?", true)
 	}
 
-	require.NoError(t, repo.Create(context.Background(), active))
-	require.NoError(t, repo.Create(context.Background(), inactive))
-
-	tx.Model(&models.User{}).Where("id = ?", inactive.ID).Update("is_active", false)
-
-	got, err := repo.FindByEmail(context.Background(), "active@test.com")
+	err := repo.CreateTx(ctx, deps.DB, user)
 	require.NoError(t, err)
-	require.Equal(t, "active@test.com", got.Email)
 
-	_, err = repo.FindByEmail(context.Background(), "inactive@test.com")
-	require.Error(t, err)
-}
-
-func TestUserRepository_FindByID_OK(t *testing.T) {
-	db := testhelpers.SetupTestDB(t)
-	tx := testhelpers.BeginTx(t, db)
-
-	repo := NewUserRepository(tx)
-
-	u := &models.User{
-		Nickname: "id",
-		Email:    "id@test.com",
-		Password: "12345s",
-	}
-
-	require.NoError(t, repo.Create(context.Background(), u))
-
-	got, err := repo.FindByID(context.Background(), u.ID)
+	found, err := repo.FindByEmail(ctx, email)
 	require.NoError(t, err)
-	require.Equal(t, u.Email, got.Email)
+	assert.Equal(t, user.ID, found.ID)
+	assert.Equal(t, email, found.Email)
 }

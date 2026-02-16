@@ -65,7 +65,7 @@ func setupTestEnv(t *testing.T) *TestDeps {
 	require.NoError(t, err)
 
 	// Миграции
-	err = db.AutoMigrate(&models.User{}, &models.Post{})
+	err = db.AutoMigrate(&models.User{}, &models.Post{}, &models.RefreshToken{}, &models.PostLike{}, &models.Comment{}, &models.AuditLog{}, &models.OutboxEvent{})
 	require.NoError(t, err)
 
 	// --- 4. ПОДКЛЮЧЕНИЕ К REDIS ---
