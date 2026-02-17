@@ -4,15 +4,16 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"github.com/gin-gonic/gin"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"go_blog/internal/controllers"
 	"go_blog/internal/dto"
 	"go_blog/internal/services"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
 // --- 1. MOCK SERVICE ---
@@ -76,7 +77,7 @@ func TestAuthController_Register(t *testing.T) {
 
 		// B. Mock Expectations
 		// Ожидаем, что контроллер вызовет сервис с нашими данными
-		mockService.On("Register", mock.Anything, reqBody, "", "").
+		mockService.On("Register", mock.Anything, reqBody, mock.Anything, mock.Anything).
 			Return(expectedTokens, nil)
 
 		// C. Request Execution
@@ -127,10 +128,10 @@ func TestAuthController_Register(t *testing.T) {
 		reqBody := dto.RegisterRequest{
 			Nickname: "tester",
 			Email:    "busy@test.com",
-			Password: "123",
+			Password: "12345s",
 		}
 
-		mockService.On("Register", mock.Anything, reqBody, "", "").
+		mockService.On("Register", mock.Anything, reqBody, mock.Anything, mock.Anything).
 			Return(nil, services.ErrUserExists)
 
 		bodyBytes, _ := json.Marshal(reqBody)

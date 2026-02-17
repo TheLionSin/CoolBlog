@@ -72,7 +72,7 @@ func (s *AuthService) Register(ctx context.Context, req dto.RegisterRequest, use
 		if err := s.userRepo.CreateTx(ctx, tx, user); err != nil {
 			if errors.Is(err, repositories.ErrUserExists) {
 				//ПРОВЕРИТЬ
-				return services.ErrUserExists
+				return ErrUserExists
 			}
 			return err
 		}

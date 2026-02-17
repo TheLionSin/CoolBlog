@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"go_blog/internal/dto"
+	"go_blog/internal/models"
 	"go_blog/internal/services"
 	"go_blog/internal/utils"
 	"go_blog/internal/validators"
@@ -14,11 +15,18 @@ import (
 	"github.com/go-playground/validator/v10"
 )
 
+type PostService interface {
+	Create(ctx context.Context, uid uint, title, text string) (*models.Post, error)
+	Update(ctx context.Context, slug string, uid uint, title, text *string) (*models.Post, error)
+	Delete(ctx context.Context, slug string, uid uint) error
+	Get(ctx context.Context, slug string) (*models.Post, error)
+	List(ctx context.Context, page, limit int, q string) ([]models.Post, int64, error)
+}
 type PostController struct {
-	service *services.PostService
+	service PostService
 }
 
-func NewPostController(service *services.PostService) *PostController {
+func NewPostController(service PostService) *PostController {
 	return &PostController{service: service}
 }
 
