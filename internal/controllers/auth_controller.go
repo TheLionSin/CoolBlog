@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"github.com/gin-gonic/gin"
@@ -12,11 +13,19 @@ import (
 	"net/http"
 )
 
+// 1. Объявляем интерфейс (Чего мы хотим от сервиса)
+// Это контракт. Контроллеру плевать, кто его исполняет.
+type AuthService interface {
+	Register(ctx context.Context, req dto.RegisterRequest, userAgent, ip string) (*dto.TokenPairResponse, error)
+	Login(ctx context.Context, req dto.LoginRequest, userAgent, ip string) (*dto.TokenPairResponse, error)
+	Refresh(ctx context.Context, refreshToken string, userAgent, ip string) (*dto.TokenPairResponse, error)
+	Logout(ctx context.Context, refreshToken string) error
+}
 type AuthController struct {
-	service *services.AuthService
+	service AuthService
 }
 
-func NewAuthController(service *services.AuthService) *AuthController {
+func NewAuthController(service AuthService) *AuthController {
 	return &AuthController{service: service}
 }
 
@@ -42,7 +51,7 @@ func (ac *AuthController) Register(c *gin.Context) {
 
 	tokens, err := ac.service.Register(c.Request.Context(), req, userAgent, ip)
 	if err != nil {
-		if errors.Is(err, services.ErrInvalidCredentials) {
+		if errors.Is(err, services.ErrUserExists) {
 			utils.RespondError(c, http.StatusBadRequest, "user already exists")
 		} else {
 			utils.RespondError(c, http.StatusInternalServerError, "registration failed")

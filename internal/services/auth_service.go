@@ -6,6 +6,7 @@ import (
 	"go_blog/internal/dto"
 	"go_blog/internal/events"
 	"go_blog/internal/models"
+	"go_blog/internal/repositories"
 	"go_blog/internal/utils"
 	"time"
 
@@ -69,6 +70,10 @@ func (s *AuthService) Register(ctx context.Context, req dto.RegisterRequest, use
 	err = s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		//1. Create user
 		if err := s.userRepo.CreateTx(ctx, tx, user); err != nil {
+			if errors.Is(err, repositories.ErrUserExists) {
+				//ПРОВЕРИТЬ
+				return services.ErrUserExists
+			}
 			return err
 		}
 

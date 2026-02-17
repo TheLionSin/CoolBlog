@@ -4,6 +4,7 @@ import "errors"
 
 var (
 	ErrInvalidCredentials = errors.New("invalid email or password")
+	ErrUserExists         = errors.New("user already exists")
 	ErrInvalidToken       = errors.New("invalid refresh token")
 	ErrToken              = errors.New("token error")
 	ErrPostNotFound       = errors.New("post not found")

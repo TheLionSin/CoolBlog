@@ -52,7 +52,7 @@ func TestUserRepository_FindByEmail(t *testing.T) {
 		Nickname: "finder",
 		Email:    email,
 		Password: "hash",
-		IsActive: true, // Важно! В тебя Where("is_active = ?", true)
+		IsActive: true, // Важно! В методе Where("is_active = ?", true)
 	}
 
 	err := repo.CreateTx(ctx, deps.DB, user)
