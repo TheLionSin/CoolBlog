@@ -109,6 +109,11 @@ func (pc *PostController) Delete(c *gin.Context) {
 	}
 
 	err := pc.service.Delete(c.Request.Context(), slug, uid)
+
+	// --- ОТЛАДКА ---
+	fmt.Printf("DEBUG: Slug=%s, UID=%d, Err=%v\n", slug, uid, err)
+	// ----------------
+
 	if err != nil {
 		if errors.Is(err, services.ErrPostNotFound) {
 			utils.RespondError(c, http.StatusNotFound, "post not found")
