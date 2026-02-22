@@ -1,24 +1,33 @@
 package controllers
 
 import (
+	"context"
 	"errors"
 	"fmt"
-	"github.com/gin-gonic/gin"
-	"github.com/go-playground/validator/v10"
 	"go_blog/internal/dto"
+	"go_blog/internal/models"
 	"go_blog/internal/services"
 	"go_blog/internal/utils"
 	"go_blog/internal/validators"
-	"gorm.io/gorm"
 	"net/http"
 	"strconv"
+
+	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator/v10"
+	"gorm.io/gorm"
 )
 
-type CommentController struct {
-	service *services.CommentService
+type CommentService interface {
+	Create(ctx context.Context, postSlug string, userID uint, text string) (*models.Comment, error)
+	Delete(ctx context.Context, commentID uint, userID uint) error
+	List(ctx context.Context, postSlug string) ([]dto.CommentResponse, error)
 }
 
-func NewCommentController(service *services.CommentService) *CommentController {
+type CommentController struct {
+	service CommentService
+}
+
+func NewCommentController(service CommentService) *CommentController {
 	return &CommentController{
 		service: service,
 	}

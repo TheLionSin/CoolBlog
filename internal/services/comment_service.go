@@ -2,28 +2,36 @@ package services
 
 import (
 	"context"
-	"errors"
 	"go_blog/internal/dto"
 	"go_blog/internal/events"
 	"go_blog/internal/models"
-	"go_blog/internal/repositories"
+
 	"gorm.io/gorm"
 )
 
-var ErrForbidden = errors.New("access denied")
+type CommentPostRepo interface {
+	GetBySlug(ctx context.Context, slug string) (*models.Post, error)
+}
+
+type CommentRepository interface {
+	CreateTx(ctx context.Context, tx *gorm.DB, comment *models.Comment) error
+	GetByID(ctx context.Context, id uint) (*models.Comment, error)
+	DeleteTx(ctx context.Context, tx *gorm.DB, comment *models.Comment) error
+	ListByPostID(ctx context.Context, postID uint) ([]models.Comment, error)
+}
 
 type CommentService struct {
 	db          *gorm.DB
-	commentRepo *repositories.CommentRepository
-	postRepo    *repositories.PostRepository // PostRepo, чтобы найти ID поста
-	outboxRepo  *repositories.OutboxRepository
+	commentRepo CommentRepository
+	postRepo    CommentPostRepo // PostRepo, чтобы найти ID поста
+	outboxRepo  OutboxRepository
 }
 
 func NewCommentService(
 	db *gorm.DB,
-	commentRepo *repositories.CommentRepository,
-	postRepo *repositories.PostRepository,
-	outboxRepo *repositories.OutboxRepository) *CommentService {
+	commentRepo CommentRepository,
+	postRepo CommentPostRepo,
+	outboxRepo OutboxRepository) *CommentService {
 	return &CommentService{
 		db:          db,
 		commentRepo: commentRepo,
